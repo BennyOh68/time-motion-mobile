@@ -33,7 +33,7 @@ const route = useRoute()
 const isLoggedIn = computed(() => !!appState.user)
 
 // ── Swipe navigation ──
-const routeOrder = ['input-setup', 'input', 'summary', 'chart', 'export']
+const routeOrder = ['InputSetup', 'Input', 'Summary', 'Chart', 'Export']
 const touchStartX = ref(0)
 const touchStartY = ref(0)
 const SWIPE_THRESHOLD = 60
