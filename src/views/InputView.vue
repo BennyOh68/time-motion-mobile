@@ -231,7 +231,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { appState, submitFormRows } from '../store/appState.js'
 import { dropdowns } from '../store/dropdowns.js'
@@ -241,6 +241,23 @@ import 'vue-select/dist/vue-select.css'
 
 const router = useRouter()
 const validationMsg = ref('')
+
+// ── Pre-fill TimeIn / StartDepth from last logged row on mount ──
+onMounted(() => {
+  const rows = appState.logRows
+  if (rows.length === 0) return
+  const last = rows[rows.length - 1]
+  if (last.timeOut && !appState.prepTimeIn && !appState.prodTimeIn && !appState.waitTimeIn) {
+    appState.prepTimeIn = last.timeOut
+    appState.prodTimeIn = last.timeOut
+    appState.waitTimeIn = last.timeOut
+  }
+  if (last.endDepth && !appState.prepStartDepth && !appState.prodStartDepth && !appState.waitStartDepth) {
+    appState.prepStartDepth = last.endDepth
+    appState.prodStartDepth = last.endDepth
+    appState.waitStartDepth = last.endDepth
+  }
+})
 
 // Per-segment undo snapshots (keyed by prefix: prep/prod/wait)
 const segmentSnapshots = ref({
