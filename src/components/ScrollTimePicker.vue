@@ -6,13 +6,14 @@
           <!-- Hour column: 07 am to 09 pm -->
           <div class="scroll-column hour-column">
             <div class="column-label">Hour</div>
-            <div class="scroll-track" ref="hourTrackRef">
+            <div class="scroll-track" ref="hourTrackRef" @scroll="onHourScroll">
+              <div class="highlight-bar"></div>
               <div
                 v-for="h in hours"
                 :key="h.value"
                 class="scroll-item"
                 :class="{ active: h.value === selectedHour }"
-                @click="selectedHour = h.value"
+                @click="selectHour(h.value)"
               >
                 {{ h.label }}
               </div>
@@ -22,13 +23,14 @@
           <!-- Minute column: 5-min intervals -->
           <div class="scroll-column minute-column">
             <div class="column-label">Min</div>
-            <div class="scroll-track" ref="minTrackRef">
+            <div class="scroll-track" ref="minTrackRef" @scroll="onMinScroll">
+              <div class="highlight-bar"></div>
               <div
                 v-for="m in minutes"
                 :key="m"
                 class="scroll-item"
                 :class="{ active: String(m).padStart(2, '0') === selectedMinute }"
-                @click="selectedMinute = String(m).padStart(2, '0')"
+                @click="selectMinute(String(m).padStart(2, '0'))"
               >
                 {{ String(m).padStart(2, '0') }}
               </div>
@@ -41,7 +43,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -70,7 +72,11 @@ const selectedMinute = ref('00')
 const hourTrackRef = ref(null)
 const minTrackRef = ref(null)
 
-// Parse incoming modelValue on open
+// ── Debounce timers for scroll detection ──
+let hourScrollTimer = null
+let minScrollTimer = null
+
+// ── Parse incoming modelValue on open ──
 watch(
   () => props.visible,
   async (isVisible) => {
@@ -92,14 +98,67 @@ watch(
 function scrollToActive() {
   if (hourTrackRef.value) {
     const idx = hours.findIndex(h => h.value === selectedHour.value)
-    const item = hourTrackRef.value.children[idx]
+    const item = hourTrackRef.value.querySelectorAll('.scroll-item')[idx]
     if (item) item.scrollIntoView({ block: 'center', behavior: 'instant' })
   }
   if (minTrackRef.value) {
     const idx = minutes.findIndex(m => String(m).padStart(2, '0') === selectedMinute.value)
-    const item = minTrackRef.value.children[idx]
+    const item = minTrackRef.value.querySelectorAll('.scroll-item')[idx]
     if (item) item.scrollIntoView({ block: 'center', behavior: 'instant' })
   }
+}
+
+// ── Scroll detection: find item closest to center after scroll stops ──
+function getClosestItem(trackEl, values, valueKey) {
+  if (!trackEl) return null
+  const trackRect = trackEl.getBoundingClientRect()
+  const centerY = trackRect.top + trackRect.height / 2
+  const items = trackEl.querySelectorAll('.scroll-item')
+  let closest = null
+  let minDist = Infinity
+  items.forEach((item, i) => {
+    const rect = item.getBoundingClientRect()
+    const itemCenter = rect.top + rect.height / 2
+    const dist = Math.abs(centerY - itemCenter)
+    if (dist < minDist) {
+      minDist = dist
+      closest = valueKey ? values[i][valueKey] : values[i]
+    }
+  })
+  return closest
+}
+
+function onHourScroll() {
+  clearTimeout(hourScrollTimer)
+  hourScrollTimer = setTimeout(() => {
+    const closest = getClosestItem(hourTrackRef.value, hours, 'value')
+    if (closest !== null && closest !== selectedHour.value) {
+      selectedHour.value = closest
+    }
+  }, 100)
+}
+
+function onMinScroll() {
+  clearTimeout(minScrollTimer)
+  minScrollTimer = setTimeout(() => {
+    const closest = getClosestItem(minTrackRef.value, minutes, null)
+    if (closest !== null) {
+      const val = String(closest).padStart(2, '0')
+      if (val !== selectedMinute.value) {
+        selectedMinute.value = val
+      }
+    }
+  }, 100)
+}
+
+function selectHour(value) {
+  selectedHour.value = value
+  scrollToActive()
+}
+
+function selectMinute(value) {
+  selectedMinute.value = value
+  scrollToActive()
 }
 
 function confirm() {
@@ -180,6 +239,7 @@ defineExpose({
 }
 
 .scroll-track {
+  position: relative;
   max-height: 260px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -190,7 +250,23 @@ defineExpose({
   padding: 8px 0;
 }
 
+/* ── Fixed center highlight bar (like iOS picker) ── */
+.highlight-bar {
+  position: sticky;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 6px;
+  right: 6px;
+  height: 48px;
+  background: #dbeafe;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .scroll-item {
+  position: relative;
+  z-index: 1;
   padding: 14px 10px;
   text-align: center;
   font-size: 20px;
@@ -198,16 +274,30 @@ defineExpose({
   cursor: pointer;
   scroll-snap-align: center;
   color: #94a3b8;
-  transition: all 0.12s;
+  transition: color 0.12s, font-weight 0.12s;
   border-radius: 4px;
   margin: 0 8px;
+  background: transparent;
 }
 
 .scroll-item.active {
   color: #1e293b;
   font-weight: 700;
   font-size: 22px;
-  background: #dbeafe;
-  border-radius: 8px;
+}
+
+.time-input {
+  cursor: pointer;
+  caret-color: transparent;
+  color: #3b82f6 !important;
+  font-weight: 600;
+  text-align: center;
+  font-size: 14px !important;
+}
+
+.time-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+  font-size: 16px;
 }
 </style>

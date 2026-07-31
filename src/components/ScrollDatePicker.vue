@@ -6,13 +6,14 @@
           <!-- Day column: 1–31 -->
           <div class="scroll-column day-column">
             <div class="column-label">Day</div>
-            <div class="scroll-track" ref="dayTrackRef">
+            <div class="scroll-track" ref="dayTrackRef" @scroll="onDayScroll">
+              <div class="highlight-bar"></div>
               <div
                 v-for="d in days"
                 :key="d"
                 class="scroll-item"
                 :class="{ active: d === selectedDay }"
-                @click="selectedDay = d"
+                @click="selectDay(d)"
               >
                 {{ d }}
               </div>
@@ -22,13 +23,14 @@
           <!-- Month column: Jan–Dec -->
           <div class="scroll-column month-column">
             <div class="column-label">Month</div>
-            <div class="scroll-track" ref="monthTrackRef">
+            <div class="scroll-track" ref="monthTrackRef" @scroll="onMonthScroll">
+              <div class="highlight-bar"></div>
               <div
                 v-for="m in months"
                 :key="m.value"
                 class="scroll-item"
                 :class="{ active: m.value === selectedMonth }"
-                @click="selectedMonth = m.value"
+                @click="selectMonth(m.value)"
               >
                 {{ m.label }}
               </div>
@@ -38,13 +40,14 @@
           <!-- Year column: range of years -->
           <div class="scroll-column year-column">
             <div class="column-label">Year</div>
-            <div class="scroll-track" ref="yearTrackRef">
+            <div class="scroll-track" ref="yearTrackRef" @scroll="onYearScroll">
+              <div class="highlight-bar"></div>
               <div
                 v-for="y in years"
                 :key="y"
                 class="scroll-item"
                 :class="{ active: y === selectedYear }"
-                @click="selectedYear = y"
+                @click="selectYear(y)"
               >
                 {{ y }}
               </div>
@@ -90,6 +93,11 @@ const dayTrackRef = ref(null)
 const monthTrackRef = ref(null)
 const yearTrackRef = ref(null)
 
+// ── Debounce timers for scroll detection ──
+let dayScrollTimer = null
+let monthScrollTimer = null
+let yearScrollTimer = null
+
 // ── Parse incoming modelValue on open ──
 watch(
   () => props.visible,
@@ -116,19 +124,84 @@ watch(
 function scrollToActive() {
   if (dayTrackRef.value) {
     const idx = days.findIndex(d => d === selectedDay.value)
-    const item = dayTrackRef.value.children[idx]
+    const item = dayTrackRef.value.querySelectorAll('.scroll-item')[idx]
     if (item) item.scrollIntoView({ block: 'center', behavior: 'instant' })
   }
   if (monthTrackRef.value) {
     const idx = months.findIndex(m => m.value === selectedMonth.value)
-    const item = monthTrackRef.value.children[idx]
+    const item = monthTrackRef.value.querySelectorAll('.scroll-item')[idx]
     if (item) item.scrollIntoView({ block: 'center', behavior: 'instant' })
   }
   if (yearTrackRef.value) {
     const idx = years.findIndex(y => y === selectedYear.value)
-    const item = yearTrackRef.value.children[idx]
+    const item = yearTrackRef.value.querySelectorAll('.scroll-item')[idx]
     if (item) item.scrollIntoView({ block: 'center', behavior: 'instant' })
   }
+}
+
+// ── Scroll detection: find item closest to center after scroll stops ──
+function getClosestItem(trackEl, values, valueKey) {
+  if (!trackEl) return null
+  const trackRect = trackEl.getBoundingClientRect()
+  const centerY = trackRect.top + trackRect.height / 2
+  const items = trackEl.querySelectorAll('.scroll-item')
+  let closest = null
+  let minDist = Infinity
+  items.forEach((_, i) => {
+    const rect = items[i].getBoundingClientRect()
+    const itemCenter = rect.top + rect.height / 2
+    const dist = Math.abs(centerY - itemCenter)
+    if (dist < minDist) {
+      minDist = dist
+      closest = valueKey ? values[i][valueKey] : values[i]
+    }
+  })
+  return closest
+}
+
+function onDayScroll() {
+  clearTimeout(dayScrollTimer)
+  dayScrollTimer = setTimeout(() => {
+    const closest = getClosestItem(dayTrackRef.value, days, null)
+    if (closest !== null && closest !== selectedDay.value) {
+      selectedDay.value = closest
+    }
+  }, 100)
+}
+
+function onMonthScroll() {
+  clearTimeout(monthScrollTimer)
+  monthScrollTimer = setTimeout(() => {
+    const closest = getClosestItem(monthTrackRef.value, months, 'value')
+    if (closest !== null && closest !== selectedMonth.value) {
+      selectedMonth.value = closest
+    }
+  }, 100)
+}
+
+function onYearScroll() {
+  clearTimeout(yearScrollTimer)
+  yearScrollTimer = setTimeout(() => {
+    const closest = getClosestItem(yearTrackRef.value, years, null)
+    if (closest !== null && closest !== selectedYear.value) {
+      selectedYear.value = closest
+    }
+  }, 100)
+}
+
+function selectDay(value) {
+  selectedDay.value = value
+  scrollToActive()
+}
+
+function selectMonth(value) {
+  selectedMonth.value = value
+  scrollToActive()
+}
+
+function selectYear(value) {
+  selectedYear.value = value
+  scrollToActive()
 }
 
 function confirm() {
@@ -196,6 +269,7 @@ function confirm() {
 }
 
 .scroll-track {
+  position: relative;
   max-height: 260px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -206,7 +280,23 @@ function confirm() {
   padding: 8px 0;
 }
 
+/* ── Fixed center highlight bar (like iOS picker) ── */
+.highlight-bar {
+  position: sticky;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 6px;
+  right: 6px;
+  height: 48px;
+  background: #dbeafe;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .scroll-item {
+  position: relative;
+  z-index: 1;
   padding: 14px 10px;
   text-align: center;
   font-size: 20px;
@@ -214,16 +304,15 @@ function confirm() {
   cursor: pointer;
   scroll-snap-align: center;
   color: #94a3b8;
-  transition: all 0.12s;
+  transition: color 0.12s, font-weight 0.12s;
   border-radius: 4px;
   margin: 0 8px;
+  background: transparent;
 }
 
 .scroll-item.active {
   color: #1e293b;
   font-weight: 700;
   font-size: 22px;
-  background: #dbeafe;
-  border-radius: 8px;
 }
 </style>
