@@ -123,7 +123,7 @@ html, body {
 
 .main-content {
   flex: 1;
-  padding: 12px;
+  padding: 8px;
   max-width: 800px;
   width: 100%;
   margin: 0 auto;

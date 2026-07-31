@@ -544,10 +544,13 @@ h2 {
 .field-row {
   display: flex;
   gap: 10px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .field.half {
   flex: 1;
+  min-width: 0;
 }
 
 .time-input {
