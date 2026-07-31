@@ -36,11 +36,11 @@ a<template>
         <div class="radio-group">
           <label class="radio-label" :class="{ active: appState.workType === 'JGP' }">
             <input type="radio" v-model="appState.workType" value="JGP" />
-            Jet Grout Pile (JGP)
+            Jet Grout Pile<br /><span class="abbr">(JGP)</span>
           </label>
           <label class="radio-label" :class="{ active: appState.workType === 'GH' }">
             <input type="radio" v-model="appState.workType" value="GH" />
-            Grout Hole (GH)
+            Grout Hole<br /><span class="abbr">(GH)</span>
           </label>
         </div>
       </div>
@@ -491,6 +491,18 @@ h2 {
   border-color: #3b82f6;
   background: #eff6ff;
   color: #2563eb;
+}
+
+.radio-label .abbr {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.radio-label.active .abbr {
+  color: #3b82f6;
 }
 
 .btn-primary {
