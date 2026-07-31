@@ -8,7 +8,11 @@
       <router-link to="/setup" class="nav-item nav-setup">⚙</router-link>
       <button class="nav-item nav-logout" @click="logout">Logout</button>
     </nav>
-    <main class="main-content">
+    <main
+      class="main-content"
+      @touchstart="onTouchStart"
+      @touchend="onTouchEnd"
+    >
       <router-view v-slot="{ Component }">
         <KeepAlive :include="['ChartView']">
           <component :is="Component" />
@@ -19,13 +23,51 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { supabase } from './lib/supabase.js'
 import { appState } from './store/appState.js'
 
 const router = useRouter()
+const route = useRoute()
 const isLoggedIn = computed(() => !!appState.user)
+
+// ── Swipe navigation ──
+const routeOrder = ['input-setup', 'input', 'summary', 'chart', 'export']
+const touchStartX = ref(0)
+const touchStartY = ref(0)
+const SWIPE_THRESHOLD = 60
+
+function onTouchStart(e) {
+  const t = e.touches[0]
+  touchStartX.value = t.clientX
+  touchStartY.value = t.clientY
+}
+
+function onTouchEnd(e) {
+  const t = e.changedTouches[0]
+  const dx = t.clientX - touchStartX.value
+  const dy = t.clientY - touchStartY.value
+
+  // Only trigger if horizontal swipe dominates
+  if (Math.abs(dx) < SWIPE_THRESHOLD) return
+  if (Math.abs(dx) < Math.abs(dy)) return
+
+  const currentIdx = routeOrder.indexOf(route.name)
+  if (currentIdx === -1) return
+
+  if (dx > 0) {
+    // Swiped right → go back
+    if (currentIdx > 0) {
+      router.push({ name: routeOrder[currentIdx - 1] })
+    }
+  } else {
+    // Swiped left → go forward
+    if (currentIdx < routeOrder.length - 1) {
+      router.push({ name: routeOrder[currentIdx + 1] })
+    }
+  }
+}
 
 // Hydrate user from existing Supabase session on page load
 onMounted(async () => {
@@ -127,5 +169,6 @@ html, body {
   max-width: 800px;
   width: 100%;
   margin: 0 auto;
+  touch-action: pan-y pinch-zoom;
 }
 </style>
