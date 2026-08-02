@@ -181,26 +181,72 @@ async function exportPDF() {
       alert('Please go to the Chart page first to generate a chart before exporting.')
       return
     }
-    const { default: jsPDF } = await import('jspdf')
 
-    // Get image dimensions from the stored data URL
+    // ── 1. Extract dynamic values from appState ──
+    const rigValue  = appState.teamRig   || 'Unknown Rig'
+    const rawDate   = appState.logDate   || new Date().toISOString().slice(0, 10)
+    const project   = appState.projectName || 'Project Alpha'
+
+    // Reformat logDate from YYYY-MM-DD → DD-MM-YYYY
+    const [y, mo, d] = rawDate.split('-')
+    const dateValue = `${d}-${mo}-${y}`
+
+    // ── 2. Build dynamic filename and header strings ──
+    const title    = 'Time & Motion Chart'
+    const subtitle = `${project} - ${rigValue} on ${dateValue}`
+    const filename = `${subtitle}.pdf`
+
+    // ── 3. Load chart snapshot and measure natural pixel dimensions ──
     const img = await new Promise((resolve, reject) => {
       const image = new Image()
       image.onload = () => resolve(image)
       image.onerror = reject
       image.src = appState.chartSnapshot
     })
+    const naturalW = img.naturalWidth
+    const naturalH = img.naturalHeight
 
-    // Landscape A4 — stretch chart to fill page with minimal 5mm margins
-    const pageW = 297
-    const pageH = 210
-    const margin = 5
-    const imgW = pageW - margin * 2
-    const imgH = pageH - margin * 2
+    // ── 4. A4 landscape layout constants (297 × 210 mm) ──
+    const PAGE_W   = 297
+    const PAGE_H   = 210
+    const MARGIN   = 8      // mm — left, right, and bottom
+    const HEADER_H = 28     // mm — reserved for title + subtitle
 
+    const availW = PAGE_W - MARGIN * 2          // 281 mm
+    const availH = PAGE_H - HEADER_H - MARGIN   // 174 mm
+
+    // ── 5. Compute scale factor — preserve aspect ratio, no clipping ──
+    const scaleX  = availW / naturalW
+    const scaleY  = availH / naturalH
+    const scale   = Math.min(scaleX, scaleY)
+
+    const finalW  = naturalW * scale
+    const finalH  = naturalH * scale
+
+    // Center chart horizontally in available width
+    const xOffset = MARGIN + (availW - finalW) / 2
+    const yOffset = HEADER_H                    // chart starts below header
+
+    // ── 6. Compose PDF with jsPDF ──
+    const { default: jsPDF } = await import('jspdf')
     const pdf = new jsPDF('l', 'mm', 'a4')
-    pdf.addImage(appState.chartSnapshot, 'PNG', margin, margin, imgW, imgH)
-    pdf.save(`report_${appState.projectName || 'export'}_${new Date().toISOString().slice(0, 10)}.pdf`)
+
+    // Title — bold, 16pt, centered
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(16)
+    pdf.text(title, PAGE_W / 2, MARGIN + 6, { align: 'center' })
+
+    // Subtitle — normal, 11pt, centered
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(11)
+    pdf.text(subtitle, PAGE_W / 2, MARGIN + 16, { align: 'center' })
+
+    // Chart image — fitted within available area, no clipping
+    pdf.addImage(appState.chartSnapshot, 'PNG', xOffset, yOffset, finalW, finalH)
+
+    // ── 7. Trigger local device save ──
+    // No DOM nodes were created, so no cleanup needed
+    pdf.save(filename)
   } catch (e) {
     alert('Failed to export PDF: ' + e.message)
   } finally {
