@@ -127,6 +127,7 @@
     <ScrollTimePicker
       :model-value="timePickerValue"
       :visible="timePickerVisible"
+      :title="timePickerTitle"
       :copy-label="timePickerCopyLabel"
       :copy-value="timePickerCopyValue"
       @update:model-value="onTimeConfirm"
@@ -137,6 +138,7 @@
     <ScrollDepthPicker
       :model-value="depthPickerValue"
       :visible="depthPickerVisible"
+      :title="depthPickerTitle"
       :copy-label="depthPickerCopyLabel"
       :copy-value="depthPickerCopyValue"
       @update:model-value="onDepthConfirm"
@@ -323,6 +325,7 @@ const timePickerVisible = ref(false)
 const timePickerValue = ref('')
 const timePickerRow = ref(null)
 const timePickerField = ref('')
+const timePickerTitle = ref('')
 const timePickerCopyLabel = ref('')
 const timePickerCopyValue = ref('')
 
@@ -330,6 +333,7 @@ function openTimePicker(row, field) {
   timePickerRow.value = row
   timePickerField.value = field
   timePickerValue.value = row[field] || ''
+  timePickerTitle.value = row.activity || ''
   // Find preceding row in sortedRows for copy-last button
   const idx = sortedRows.value.findIndex(r => r.id === row.id)
   if (idx > 0) {
@@ -368,6 +372,7 @@ const depthPickerVisible = ref(false)
 const depthPickerValue = ref('')
 const depthPickerRow = ref(null)
 const depthPickerField = ref('')
+const depthPickerTitle = ref('')
 const depthPickerCopyLabel = ref('')
 const depthPickerCopyValue = ref('')
 
@@ -375,6 +380,7 @@ function openDepthPicker(row, field) {
   depthPickerRow.value = row
   depthPickerField.value = field
   depthPickerValue.value = row[field] || ''
+  depthPickerTitle.value = row.activity || ''
   // Find preceding row in sortedRows for copy-last button
   const idx = sortedRows.value.findIndex(r => r.id === row.id)
   if (idx > 0) {

@@ -2,6 +2,7 @@
   <Teleport to="body">
     <div v-if="visible" class="picker-overlay" @click.self="confirm">
       <div class="picker-modal">
+        <div v-if="title" class="picker-title">{{ title }}</div>
         <div class="picker-body">
           <!-- Hour column: 07 am to 09 pm -->
           <div class="scroll-column hour-column">
@@ -58,6 +59,7 @@ import { ref, watch, nextTick } from 'vue'
 const props = defineProps({
   modelValue: { type: String, default: '' },
   visible: { type: Boolean, default: false },
+  title: { type: String, default: '' },
   copyLabel: { type: String, default: '' },
   copyValue: { type: String, default: '' },
 })
@@ -250,6 +252,15 @@ defineExpose({
 @keyframes slideUp {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
+}
+
+.picker-title {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  padding: 16px 12px 0;
+  user-select: none;
 }
 
 .picker-body {
