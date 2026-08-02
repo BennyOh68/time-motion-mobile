@@ -6,37 +6,47 @@
           <!-- Hour column: 07 am to 09 pm -->
           <div class="scroll-column hour-column">
             <div class="column-label">Hour</div>
-            <div class="scroll-track" ref="hourTrackRef" @scroll="onHourScroll">
-              <div class="highlight-bar"></div>
-              <div
-                v-for="h in hours"
-                :key="h.value"
-                class="scroll-item"
-                :class="{ active: h.value === selectedHour }"
-                @click="selectHour(h.value)"
-              >
-                {{ h.label }}
+            <div class="scroll-column-inner">
+              <div class="scroll-track" ref="hourTrackRef" @scroll="onHourScroll">
+                <div
+                  v-for="h in hours"
+                  :key="h.value"
+                  class="scroll-item"
+                  :class="{ active: h.value === selectedHour }"
+                  @click="selectHour(h.value)"
+                >
+                  {{ h.label }}
+                </div>
               </div>
+              <div class="highlight-bar"></div>
             </div>
           </div>
 
           <!-- Minute column: 5-min intervals -->
           <div class="scroll-column minute-column">
             <div class="column-label">Min</div>
-            <div class="scroll-track" ref="minTrackRef" @scroll="onMinScroll">
-              <div class="highlight-bar"></div>
-              <div
-                v-for="m in minutes"
-                :key="m"
-                class="scroll-item"
-                :class="{ active: String(m).padStart(2, '0') === selectedMinute }"
-                @click="selectMinute(String(m).padStart(2, '0'))"
-              >
-                {{ String(m).padStart(2, '0') }}
+            <div class="scroll-column-inner">
+              <div class="scroll-track" ref="minTrackRef" @scroll="onMinScroll">
+                <div
+                  v-for="m in minutes"
+                  :key="m"
+                  class="scroll-item"
+                  :class="{ active: String(m).padStart(2, '0') === selectedMinute }"
+                  @click="selectMinute(String(m).padStart(2, '0'))"
+                >
+                  {{ String(m).padStart(2, '0') }}
+                </div>
               </div>
+              <div class="highlight-bar"></div>
             </div>
           </div>
         </div>
+      </div>
+      <div v-if="copyValue" class="picker-footer">
+        <button class="btn-copy-last" @click.stop="applyCopyValue">
+          <span class="copy-label">Copy Last</span>
+          <span class="copy-value">{{ copyLabel }}</span>
+        </button>
       </div>
     </div>
   </Teleport>
@@ -48,9 +58,28 @@ import { ref, watch, nextTick } from 'vue'
 const props = defineProps({
   modelValue: { type: String, default: '' },
   visible: { type: Boolean, default: false },
+  copyLabel: { type: String, default: '' },
+  copyValue: { type: String, default: '' },
 })
 
 const emit = defineEmits(['update:modelValue', 'update:visible'])
+
+// ── Copy-last button: apply copyValue as the selected time and confirm ──
+function applyCopyValue() {
+  if (!props.copyValue) return
+  const [h, m] = props.copyValue.split(':')
+  if (h && m) {
+    selectedHour.value = h
+    selectedMinute.value = m
+    nextTick(() => {
+      scrollToActive()
+      // Emit after the scroll, using confirm logic
+      const display = formatDisplay(selectedHour.value, selectedMinute.value)
+      emit('update:modelValue', display)
+      emit('update:visible', false)
+    })
+  }
+}
 
 // Generate hours 07–21 with am/pm labels
 const hours = Array.from({ length: 15 }, (_, i) => {
@@ -90,21 +119,30 @@ watch(
         selectedMinute.value = '00'
       }
       await nextTick()
-      scrollToActive()
+      // Wait for layout before scrolling into position
+      requestAnimationFrame(() => {
+        scrollToActive()
+      })
     }
   }
 )
 
 function scrollToActive() {
   if (hourTrackRef.value) {
+    const el = hourTrackRef.value
     const idx = hours.findIndex(h => h.value === selectedHour.value)
-    const item = hourTrackRef.value.querySelectorAll('.scroll-item')[idx]
-    if (item) item.scrollIntoView({ block: 'center', behavior: 'instant' })
+    const item = el.querySelectorAll('.scroll-item')[idx]
+    if (item) {
+      el.scrollTop = item.offsetTop - el.clientHeight / 2 + item.offsetHeight / 2
+    }
   }
   if (minTrackRef.value) {
+    const el = minTrackRef.value
     const idx = minutes.findIndex(m => String(m).padStart(2, '0') === selectedMinute.value)
-    const item = minTrackRef.value.querySelectorAll('.scroll-item')[idx]
-    if (item) item.scrollIntoView({ block: 'center', behavior: 'instant' })
+    const item = el.querySelectorAll('.scroll-item')[idx]
+    if (item) {
+      el.scrollTop = item.offsetTop - el.clientHeight / 2 + item.offsetHeight / 2
+    }
   }
 }
 
@@ -238,25 +276,31 @@ defineExpose({
   margin-bottom: 8px;
 }
 
+.scroll-column-inner {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
 .scroll-track {
   position: relative;
   max-height: 260px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: y mandatory;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #f8fafc;
-  padding: 8px 0;
+  background: transparent;
+  /* Padding lets first/last items scroll to center: (260/2 - 48/2) = 106px */
+  padding: 106px 0;
 }
 
-/* ── Fixed center highlight bar (like iOS picker) ── */
+/* ── Fixed center highlight bar (behind numbers) ── */
 .highlight-bar {
-  position: sticky;
+  position: absolute;
   top: 50%;
-  transform: translateY(-50%);
   left: 6px;
-  right: 6px;
+  right: 12px;
+  transform: translateY(-50%);
   height: 48px;
   background: #dbeafe;
   border-radius: 8px;
@@ -299,5 +343,49 @@ defineExpose({
   color: #94a3b8;
   font-weight: 400;
   font-size: 16px;
+}
+
+/* ── Copy-last footer ── */
+.picker-footer {
+  padding: 0 12px 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-copy-last {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 24px;
+  background: #f1f5f9;
+  border: 1px dashed #94a3b8;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-copy-last:hover {
+  background: #e2e8f0;
+  border-color: #64748b;
+}
+
+.btn-copy-last:active {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.copy-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.copy-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #3b82f6;
 }
 </style>

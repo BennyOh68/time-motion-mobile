@@ -6,51 +6,57 @@
           <!-- Day column: 1–31 -->
           <div class="scroll-column day-column">
             <div class="column-label">Day</div>
-            <div class="scroll-track" ref="dayTrackRef" @scroll="onDayScroll">
-              <div class="highlight-bar"></div>
-              <div
-                v-for="d in days"
-                :key="d"
-                class="scroll-item"
-                :class="{ active: d === selectedDay }"
-                @click="selectDay(d)"
-              >
-                {{ d }}
+            <div class="scroll-column-inner">
+              <div class="scroll-track" ref="dayTrackRef" @scroll="onDayScroll">
+                <div
+                  v-for="d in days"
+                  :key="d"
+                  class="scroll-item"
+                  :class="{ active: d === selectedDay }"
+                  @click="selectDay(d)"
+                >
+                  {{ d }}
+                </div>
               </div>
+              <div class="highlight-bar"></div>
             </div>
           </div>
 
           <!-- Month column: Jan–Dec -->
           <div class="scroll-column month-column">
             <div class="column-label">Month</div>
-            <div class="scroll-track" ref="monthTrackRef" @scroll="onMonthScroll">
-              <div class="highlight-bar"></div>
-              <div
-                v-for="m in months"
-                :key="m.value"
-                class="scroll-item"
-                :class="{ active: m.value === selectedMonth }"
-                @click="selectMonth(m.value)"
-              >
-                {{ m.label }}
+            <div class="scroll-column-inner">
+              <div class="scroll-track" ref="monthTrackRef" @scroll="onMonthScroll">
+                <div
+                  v-for="m in months"
+                  :key="m.value"
+                  class="scroll-item"
+                  :class="{ active: m.value === selectedMonth }"
+                  @click="selectMonth(m.value)"
+                >
+                  {{ m.label }}
+                </div>
               </div>
+              <div class="highlight-bar"></div>
             </div>
           </div>
 
           <!-- Year column: range of years -->
           <div class="scroll-column year-column">
             <div class="column-label">Year</div>
-            <div class="scroll-track" ref="yearTrackRef" @scroll="onYearScroll">
-              <div class="highlight-bar"></div>
-              <div
-                v-for="y in years"
-                :key="y"
-                class="scroll-item"
-                :class="{ active: y === selectedYear }"
-                @click="selectYear(y)"
-              >
-                {{ y }}
+            <div class="scroll-column-inner">
+              <div class="scroll-track" ref="yearTrackRef" @scroll="onYearScroll">
+                <div
+                  v-for="y in years"
+                  :key="y"
+                  class="scroll-item"
+                  :class="{ active: y === selectedYear }"
+                  @click="selectYear(y)"
+                >
+                  {{ y }}
+                </div>
               </div>
+              <div class="highlight-bar"></div>
             </div>
           </div>
         </div>
@@ -116,26 +122,37 @@ watch(
         selectedDay.value = now.getDate()
       }
       await nextTick()
-      scrollToActive()
+      requestAnimationFrame(() => {
+        scrollToActive()
+      })
     }
   }
 )
 
 function scrollToActive() {
   if (dayTrackRef.value) {
+    const el = dayTrackRef.value
     const idx = days.findIndex(d => d === selectedDay.value)
-    const item = dayTrackRef.value.querySelectorAll('.scroll-item')[idx]
-    if (item) item.scrollIntoView({ block: 'center', behavior: 'instant' })
+    const item = el.querySelectorAll('.scroll-item')[idx]
+    if (item) {
+      el.scrollTop = item.offsetTop - el.clientHeight / 2 + item.offsetHeight / 2
+    }
   }
   if (monthTrackRef.value) {
+    const el = monthTrackRef.value
     const idx = months.findIndex(m => m.value === selectedMonth.value)
-    const item = monthTrackRef.value.querySelectorAll('.scroll-item')[idx]
-    if (item) item.scrollIntoView({ block: 'center', behavior: 'instant' })
+    const item = el.querySelectorAll('.scroll-item')[idx]
+    if (item) {
+      el.scrollTop = item.offsetTop - el.clientHeight / 2 + item.offsetHeight / 2
+    }
   }
   if (yearTrackRef.value) {
+    const el = yearTrackRef.value
     const idx = years.findIndex(y => y === selectedYear.value)
-    const item = yearTrackRef.value.querySelectorAll('.scroll-item')[idx]
-    if (item) item.scrollIntoView({ block: 'center', behavior: 'instant' })
+    const item = el.querySelectorAll('.scroll-item')[idx]
+    if (item) {
+      el.scrollTop = item.offsetTop - el.clientHeight / 2 + item.offsetHeight / 2
+    }
   }
 }
 
@@ -268,25 +285,31 @@ function confirm() {
   margin-bottom: 8px;
 }
 
+.scroll-column-inner {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
 .scroll-track {
   position: relative;
   max-height: 260px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: y mandatory;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #f8fafc;
-  padding: 8px 0;
+  background: transparent;
+  /* Padding lets first/last items scroll to center: (260/2 - 48/2) = 106px */
+  padding: 106px 0;
 }
 
-/* ── Fixed center highlight bar (like iOS picker) ── */
+/* ── Fixed center highlight bar (behind numbers) ── */
 .highlight-bar {
-  position: sticky;
+  position: absolute;
   top: 50%;
-  transform: translateY(-50%);
   left: 6px;
-  right: 6px;
+  right: 12px;
+  transform: translateY(-50%);
   height: 48px;
   background: #dbeafe;
   border-radius: 8px;

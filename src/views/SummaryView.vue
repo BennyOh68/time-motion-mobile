@@ -3,6 +3,12 @@
     <h2>📝 Summary for Edit</h2>
     <div class="info-bar">
       <span class="info-left">{{ infoSummary }}</span>
+      <button
+        v-if="lastEditSnapshot"
+        class="btn-undo"
+        title="Undo last edit"
+        @click="undoLastEdit"
+      >↩</button>
       <span class="info-right">{{ formattedDate }}</span>
     </div>
 
@@ -10,88 +16,94 @@
       No entries yet. Go back to the Input page to add data.
     </div>
 
-    <div v-else class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th class="col-sn">S/N</th>
-            <th class="col-activity">Activity</th>
-            <th class="col-time">TIME<br>IN</th>
-            <th class="col-time">TIME<br>OUT</th>
-            <th class="col-depth">START<br>DEPTH (m)</th>
-            <th class="col-depth">END<br>DEPTH (m)</th>
-            <th class="col-chk">
-              <input
-                type="checkbox"
-                :checked="allSelected"
-                @change="toggleAll"
-                title="Select all"
-              />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="(row, i) in sortedRows"
-            :key="row.id"
-            :class="{ 'row-selected': selectedIds.has(row.id) }"
-          >
-            <td class="td-sn">{{ pad(i + 1) }}</td>
-            <td>
-              <input
-                v-model="row.activityName"
-                type="text"
-                class="cell-input"
-              />
-            </td>
-            <td>
-              <input
-                :value="formatTime(row.timeIn)"
-                @input="row.timeIn = unformatTime($event.target.value)"
-                @focus="onTimeFocus($event, row.timeIn)"
-                @blur="onTimeBlur($event)"
-                type="text"
-                class="cell-input time-cell"
-                placeholder="H:MMam"
-              />
-            </td>
-            <td>
-              <input
-                :value="formatTime(row.timeOut)"
-                @input="row.timeOut = unformatTime($event.target.value)"
-                @focus="onTimeFocus($event, row.timeOut)"
-                @blur="onTimeBlur($event)"
-                type="text"
-                class="cell-input time-cell"
-                placeholder="H:MMpm"
-              />
-            </td>
-            <td>
-              <input
-                v-model="row.startDepth"
-                type="text"
-                class="cell-input depth-cell"
-                placeholder="0.0"
-              />
-            </td>
-            <td>
-              <input
-                v-model="row.endDepth"
-                type="text"
-                class="cell-input depth-cell"
-                placeholder="0.0"
-              />
-            </td>
-            <td class="td-chk">
-              <input
-                type="checkbox"
-                :checked="selectedIds.has(row.id)"
-                @change="toggleRow(row.id)"
-              />
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-else class="table-scroll-container">
+      <button class="scroll-btn scroll-left" @click="scrollTable(-220)" aria-label="Scroll left">◀</button>
+      <div class="table-wrapper" ref="tableWrapperRef">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-sn">S/N</th>
+              <th class="col-activity">Activity</th>
+              <th class="col-time">TIME<br>IN</th>
+              <th class="col-time">TIME<br>OUT</th>
+              <th class="col-depth">START<br>DEPTH (m)</th>
+              <th class="col-depth">END<br>DEPTH (m)</th>
+              <th class="col-chk">
+                <input
+                  type="checkbox"
+                  :checked="allSelected"
+                  @change="toggleAll"
+                  title="Select all"
+                />
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(row, i) in sortedRows"
+              :key="row.id"
+              :class="{ 'row-selected': selectedIds.has(row.id) }"
+            >
+              <td class="td-sn">{{ pad(i + 1) }}</td>
+              <td>
+                <input
+                  v-model="row.activityName"
+                  type="text"
+                  class="cell-input"
+                />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  readonly
+                  :value="formatTime(row.timeIn)"
+                  :class="['cell-input', 'time-cell', 'pickable-cell', { 'cell-mismatch': i > 0 && row.timeIn && sortedRows[i-1].timeOut && row.timeIn !== sortedRows[i-1].timeOut }]"
+                  placeholder="H:MMam"
+                  @click="openTimePicker(row, 'timeIn')"
+                />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  readonly
+                  :value="formatTime(row.timeOut)"
+                  class="cell-input time-cell pickable-cell"
+                  placeholder="H:MMpm"
+                  @click="openTimePicker(row, 'timeOut')"
+                />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  readonly
+                  :value="formatDepth(row.startDepth)"
+                  :class="['cell-input', 'depth-cell', 'pickable-cell', { 'cell-mismatch': i > 0 && row.startDepth !== '' && row.startDepth != null && sortedRows[i-1].endDepth !== '' && sortedRows[i-1].endDepth != null && Number(row.startDepth) !== Number(sortedRows[i-1].endDepth) }]"
+                  placeholder="—"
+                  @click="openDepthPicker(row, 'startDepth')"
+                />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  readonly
+                  :value="formatDepth(row.endDepth)"
+                  class="cell-input depth-cell pickable-cell"
+                  placeholder="—"
+                  @click="openDepthPicker(row, 'endDepth')"
+                />
+              </td>
+              <td class="td-chk">
+                <input
+                  type="checkbox"
+                  :checked="selectedIds.has(row.id)"
+                  @change="toggleRow(row.id)"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="scroll-btn scroll-right" @click="scrollTable(220)" aria-label="Scroll right">▶</button>
     </div>
 
     <!-- Delete button — appears when any rows are selected -->
@@ -105,13 +117,35 @@
       <button class="btn-outline" @click="router.push('/input')">← Back</button>
       <button class="btn-primary" @click="router.push('/chart')">Next → Chart</button>
     </div>
+
+    <!-- Scroll-based time picker -->
+    <ScrollTimePicker
+      :model-value="timePickerValue"
+      :visible="timePickerVisible"
+      :copy-label="timePickerCopyLabel"
+      :copy-value="timePickerCopyValue"
+      @update:model-value="onTimeConfirm"
+      @update:visible="timePickerVisible = false"
+    />
+
+    <!-- Scroll-based depth picker -->
+    <ScrollDepthPicker
+      :model-value="depthPickerValue"
+      :visible="depthPickerVisible"
+      :copy-label="depthPickerCopyLabel"
+      :copy-value="depthPickerCopyValue"
+      @update:model-value="onDepthConfirm"
+      @update:visible="depthPickerVisible = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { appState } from '../store/appState.js'
+import ScrollTimePicker from '../components/ScrollTimePicker.vue'
+import ScrollDepthPicker from '../components/ScrollDepthPicker.vue'
 
 const router = useRouter()
 
@@ -145,7 +179,8 @@ function toggleRow(id) {
 
 function deleteSelected() {
   const ids = selectedIds.value
-  // Remove from logRows (original unsorted array)
+  const deletedRows = appState.logRows.filter(r => ids.has(r.id))
+  lastEditSnapshot.value = { type: 'delete', deletedRows }
   appState.logRows = appState.logRows.filter(r => !ids.has(r.id))
   selectedIds.value = new Set()
 }
@@ -159,12 +194,124 @@ const sortedRows = computed(() => {
   })
 })
 
+// ── Table horizontal scroll ──
+const tableWrapperRef = ref(null)
+
+function scrollTable(delta) {
+  const el = tableWrapperRef.value
+  if (!el) return
+  el.scrollBy({ left: delta, behavior: 'smooth' })
+}
+
+// ── One-level undo ──
+const lastEditSnapshot = ref(null)
+
+function saveSnapshot(row, field) {
+  lastEditSnapshot.value = {
+    type: 'edit',
+    row,
+    field,
+    oldValue: row[field],
+  }
+}
+
+function undoLastEdit() {
+  const snap = lastEditSnapshot.value
+  if (!snap) return
+  if (snap.type === 'edit') {
+    snap.row[snap.field] = snap.oldValue
+  } else if (snap.type === 'delete') {
+    // Re-insert deleted rows, maintaining original order by timeIn
+    const restoredIds = new Set(snap.deletedRows.map(r => r.id))
+    appState.logRows = [...appState.logRows, ...snap.deletedRows]
+    selectedIds.value = new Set()
+  }
+  lastEditSnapshot.value = null
+}
+
+// ── Time picker state ──
+const timePickerVisible = ref(false)
+const timePickerValue = ref('')
+const timePickerRow = ref(null)
+const timePickerField = ref('')
+const timePickerCopyLabel = ref('')
+const timePickerCopyValue = ref('')
+
+function openTimePicker(row, field) {
+  timePickerRow.value = row
+  timePickerField.value = field
+  timePickerValue.value = row[field] || ''
+  // Find preceding row in sortedRows for copy-last button
+  const idx = sortedRows.value.findIndex(r => r.id === row.id)
+  if (idx > 0) {
+    const prev = sortedRows.value[idx - 1]
+    timePickerCopyLabel.value = formatTime(prev.timeOut)
+    timePickerCopyValue.value = prev.timeOut || ''
+  } else {
+    timePickerCopyLabel.value = ''
+    timePickerCopyValue.value = ''
+  }
+  timePickerVisible.value = true
+}
+
+function onTimeConfirm(displayValue) {
+  // displayValue is "HH:MM am/pm" from ScrollTimePicker
+  const row = timePickerRow.value
+  const field = timePickerField.value
+  if (!row) return
+  saveSnapshot(row, field)
+  const match = (displayValue || '').match(/^(\d{2}):(\d{2})\s*(am|pm)$/i)
+  if (match) {
+    let hh = parseInt(match[1], 10)
+    const mm = match[2]
+    const ampm = match[3].toLowerCase()
+    if (ampm === 'pm' && hh < 12) hh += 12
+    if (ampm === 'am' && hh === 12) hh = 0
+    row[field] = `${String(hh).padStart(2, '0')}:${mm}`
+  } else {
+    row[field] = displayValue
+  }
+  timePickerVisible.value = false
+}
+
+// ── Depth picker state ──
+const depthPickerVisible = ref(false)
+const depthPickerValue = ref('')
+const depthPickerRow = ref(null)
+const depthPickerField = ref('')
+const depthPickerCopyLabel = ref('')
+const depthPickerCopyValue = ref('')
+
+function openDepthPicker(row, field) {
+  depthPickerRow.value = row
+  depthPickerField.value = field
+  depthPickerValue.value = row[field] || ''
+  // Find preceding row in sortedRows for copy-last button
+  const idx = sortedRows.value.findIndex(r => r.id === row.id)
+  if (idx > 0) {
+    const prev = sortedRows.value[idx - 1]
+    depthPickerCopyLabel.value = formatDepth(prev.endDepth)
+    depthPickerCopyValue.value = prev.endDepth != null ? String(prev.endDepth) : ''
+  } else {
+    depthPickerCopyLabel.value = ''
+    depthPickerCopyValue.value = ''
+  }
+  depthPickerVisible.value = true
+}
+
+function onDepthConfirm(value) {
+  const row = depthPickerRow.value
+  const field = depthPickerField.value
+  if (!row) return
+  saveSnapshot(row, field)
+  row[field] = value || ''
+  depthPickerVisible.value = false
+}
+
 // ── Time formatting (24h ↔ 12h am/pm) ──
 function formatTime(hhmm) {
   if (!hhmm) return ''
-  // Normalize: replace dots with colons, strip trailing am/pm fragments
-  let raw = String(hhmm).replace(/\./g, ':').replace(/[ap]m?$/i, '').trim()
-  // If still no colon, try to infer from digit-only string (e.g. "800" → "8:00")
+  let raw = String(hhmm).replace(/\./g, ':').replace(/(am|pm)$/i, '').trim()
   if (!raw.includes(':')) {
     const digits = raw.replace(/\D/g, '')
     if (digits.length === 3) {
@@ -175,49 +322,24 @@ function formatTime(hhmm) {
       return hhmm
     }
   }
-  const [hStr, mStr] = raw.split(':')
+  const parts = raw.split(':')
+  if (parts.length !== 2) return hhmm
+  const [hStr, mStr] = parts
+  if (!/^\d{1,2}$/.test(hStr) || !/^\d{2}$/.test(mStr)) return hhmm
   const h = parseInt(hStr, 10)
   const m = parseInt(mStr, 10)
-  if (isNaN(h) || isNaN(m) || h > 23 || m > 59) return hhmm
+  if (h > 23 || m > 59) return hhmm
   const ampm = h >= 12 ? 'pm' : 'am'
   const h12 = h % 12 || 12
   return `${h12}:${String(m).padStart(2, '0')}${ampm}`
 }
 
-function unformatTime(val) {
-  if (!val) return ''
-  // Normalize: replace dots with colons
-  const normalized = String(val).replace(/\./g, ':').trim()
-  // Try standard H:MM am/pm pattern
-  const match = normalized.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i)
-  if (match) {
-    let h = parseInt(match[1], 10)
-    const m = match[2]
-    const ampm = match[3].toLowerCase()
-    if (ampm === 'pm' && h < 12) h += 12
-    if (ampm === 'am' && h === 12) h = 0
-    return `${String(h).padStart(2, '0')}:${m}`
-  }
-  // Try raw 24h H:MM format (no am/pm)
-  const rawMatch = normalized.match(/^(\d{1,2}):(\d{2})$/)
-  if (rawMatch) {
-    let h = parseInt(rawMatch[1], 10)
-    const m = rawMatch[2]
-    if (h >= 0 && h <= 23) {
-      return `${String(h).padStart(2, '0')}:${m}`
-    }
-  }
-  return val
-}
-
-// Show raw 24h value on focus for easier editing
-function onTimeFocus(e, hhmm) {
-  e.target.value = hhmm || ''
-}
-
-// Re-format on blur
-function onTimeBlur(e) {
-  e.target.value = formatTime(unformatTime(e.target.value))
+// ── Depth formatting (always show 1 decimal place) ──
+function formatDepth(val) {
+  if (val === undefined || val === null || val === '') return ''
+  const num = parseFloat(String(val))
+  if (isNaN(num)) return ''
+  return num.toFixed(1) + 'm'
 }
 
 // ── Info bar ──
@@ -277,19 +399,79 @@ h2 {
   flex-shrink: 0;
 }
 
+.btn-undo {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  font-size: 20px;
+  color: #92400e;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  margin: 0 8px;
+  padding: 0;
+  line-height: 1;
+}
+
+.btn-undo:active {
+  background: #fde68a;
+}
+
 .empty-msg {
   text-align: center;
   color: #94a3b8;
   padding: 40px;
 }
 
+/* ── Table scroll container with arrow buttons ── */
+.table-scroll-container {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 8px;
+}
+
+.scroll-btn {
+  flex-shrink: 0;
+  width: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 22px;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  padding: 0;
+  margin: 0 4px;
+}
+
+.scroll-btn:active {
+  background: #e2e8f0;
+}
+
 .table-wrapper {
+  flex: 1;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   border-radius: 10px;
   box-shadow: 0 1px 6px rgba(0,0,0,0.06);
   background: #fff;
-  margin-bottom: 8px;
+  min-width: 0;
 }
 
 table {
@@ -397,6 +579,23 @@ td {
 .depth-cell {
   font-variant-numeric: tabular-nums;
   text-align: center;
+}
+
+/* ── Pickable cell (readonly, tap to open picker) ── */
+.pickable-cell {
+  cursor: pointer;
+  caret-color: transparent;
+  color: #3b82f6 !important;
+  font-weight: 600;
+}
+
+.pickable-cell::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.cell-mismatch {
+  color: #ef4444 !important;
 }
 
 /* ── Delete bar ── */
