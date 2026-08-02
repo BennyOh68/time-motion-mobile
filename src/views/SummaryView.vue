@@ -16,9 +16,7 @@
       No entries yet. Go back to the Input page to add data.
     </div>
 
-    <div v-else class="table-scroll-container">
-      <button class="scroll-btn scroll-left" @click="scrollTable(-220)" aria-label="Scroll left">◀</button>
-      <div class="table-wrapper" ref="tableWrapperRef">
+    <div v-else class="table-wrapper" ref="tableWrapperRef">
         <table>
           <thead>
             <tr>
@@ -102,8 +100,15 @@
             </tr>
           </tbody>
         </table>
+    </div>
+
+    <!-- Custom scrollbar below table -->
+    <div v-if="sortedRows.length > 0" class="custom-scrollbar">
+      <button class="scroll-arrow" @pointerdown.prevent="startScroll(-150)" @pointerup="stopScroll" @pointerleave="stopScroll" aria-label="Scroll left">◀</button>
+      <div class="scroll-track" ref="scrollTrackRef">
+        <div class="scroll-thumb" ref="scrollThumbRef" @pointerdown.prevent="startThumbDrag"></div>
       </div>
-      <button class="scroll-btn scroll-right" @click="scrollTable(220)" aria-label="Scroll right">▶</button>
+      <button class="scroll-arrow" @pointerdown.prevent="startScroll(150)" @pointerup="stopScroll" @pointerleave="stopScroll" aria-label="Scroll right">▶</button>
     </div>
 
     <!-- Delete button — appears when any rows are selected -->
@@ -141,7 +146,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { appState } from '../store/appState.js'
 import ScrollTimePicker from '../components/ScrollTimePicker.vue'
@@ -194,14 +199,98 @@ const sortedRows = computed(() => {
   })
 })
 
-// ── Table horizontal scroll ──
+// ── Table wrapper ref ──
 const tableWrapperRef = ref(null)
 
-function scrollTable(delta) {
+// ── Custom scrollbar synced to table ──
+const scrollTrackRef = ref(null)
+const scrollThumbRef = ref(null)
+
+function syncScrollbar() {
+  const table = tableWrapperRef.value
+  const track = scrollTrackRef.value
+  const thumb = scrollThumbRef.value
+  if (!table || !track || !thumb) return
+  const maxScroll = table.scrollWidth - table.clientWidth
+  const trackWidth = track.clientWidth - thumb.clientWidth
+  if (maxScroll <= 0) {
+    thumb.style.display = 'none'
+    return
+  }
+  thumb.style.display = 'block'
+  const ratio = table.scrollLeft / maxScroll
+  thumb.style.left = (ratio * trackWidth) + 'px'
+}
+
+function scrollTableBy(delta) {
   const el = tableWrapperRef.value
   if (!el) return
   el.scrollBy({ left: delta, behavior: 'smooth' })
 }
+
+function scrollTableTo(clientX) {
+  const table = tableWrapperRef.value
+  const track = scrollTrackRef.value
+  const thumb = scrollThumbRef.value
+  if (!table || !track || !thumb) return
+  const maxScroll = table.scrollWidth - table.clientWidth
+  if (maxScroll <= 0) return
+  const trackRect = track.getBoundingClientRect()
+  const clickX = clientX - trackRect.left - thumb.clientWidth / 2
+  const trackWidth = track.clientWidth - thumb.clientWidth
+  const ratio = Math.max(0, Math.min(1, clickX / trackWidth))
+  table.scrollLeft = ratio * maxScroll
+}
+
+// ── Auto-scroll repeat when holding arrow ──
+let scrollInterval = null
+function startScroll(delta) {
+  scrollTableBy(delta)
+  scrollInterval = setInterval(() => scrollTableBy(delta), 80)
+}
+function stopScroll() {
+  if (scrollInterval) { clearInterval(scrollInterval); scrollInterval = null }
+}
+
+// ── Thumb dragging ──
+let dragging = false
+function startThumbDrag(e) {
+  dragging = true
+  const onMove = (ev) => {
+    if (!dragging) return
+    scrollTableTo(ev.clientX)
+  }
+  const onUp = () => {
+    dragging = false
+    document.removeEventListener('pointermove', onMove)
+    document.removeEventListener('pointerup', onUp)
+  }
+  document.addEventListener('pointermove', onMove)
+  document.addEventListener('pointerup', onUp)
+}
+
+// Watch table scroll and sync thumb position
+watch(tableWrapperRef, (el) => {
+  if (!el) return
+  el.addEventListener('scroll', syncScrollbar)
+  nextTick(() => syncScrollbar())
+}, { immediate: false })
+
+onMounted(() => {
+  nextTick(() => {
+    const el = tableWrapperRef.value
+    if (el) {
+      el.addEventListener('scroll', syncScrollbar)
+      syncScrollbar()
+    }
+  })
+})
+
+onUnmounted(() => {
+  stopScroll()
+  const el = tableWrapperRef.value
+  if (el) el.removeEventListener('scroll', syncScrollbar)
+})
 
 // ── One-level undo ──
 const lastEditSnapshot = ref(null)
@@ -431,47 +520,14 @@ h2 {
   padding: 40px;
 }
 
-/* ── Table scroll container with arrow buttons ── */
-.table-scroll-container {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  margin-bottom: 8px;
-}
-
-.scroll-btn {
-  flex-shrink: 0;
-  width: 44px;
-  min-width: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 22px;
-  color: #475569;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  padding: 0;
-  margin: 0 4px;
-}
-
-.scroll-btn:active {
-  background: #e2e8f0;
-}
-
+/* ── Table scroll wrapper (scrollbar below) ── */
 .table-wrapper {
-  flex: 1;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   border-radius: 10px;
   box-shadow: 0 1px 6px rgba(0,0,0,0.06);
   background: #fff;
-  min-width: 0;
+  margin-bottom: 8px;
 }
 
 table {
@@ -596,6 +652,73 @@ td {
 
 .cell-mismatch {
   color: #ef4444 !important;
+}
+
+/* ── Custom scrollbar ── */
+.custom-scrollbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 4px 0 8px;
+  height: 24px;
+}
+
+.scroll-arrow {
+  flex-shrink: 0;
+  width: 28px;
+  height: 24px;
+  border: none;
+  background: #e2e8f0;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  touch-action: manipulation;
+  transition: background 0.12s;
+}
+
+.scroll-arrow:hover {
+  background: #cbd5e1;
+}
+
+.scroll-arrow:active {
+  background: #94a3b8;
+  color: #1e293b;
+}
+
+.scroll-track {
+  flex: 1;
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 5px;
+  margin: 0 6px;
+  position: relative;
+  cursor: pointer;
+}
+
+.scroll-thumb {
+  position: absolute;
+  top: -1px;
+  height: 12px;
+  background: #64748b;
+  border-radius: 6px;
+  cursor: grab;
+  min-width: 36px;
+  width: 40%;
+  transition: background 0.12s;
+}
+
+.scroll-thumb:hover {
+  background: #475569;
+}
+
+.scroll-thumb:active {
+  background: #334155;
+  cursor: grabbing;
 }
 
 /* ── Delete bar ── */
