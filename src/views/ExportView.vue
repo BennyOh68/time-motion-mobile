@@ -174,82 +174,401 @@ async function exportPNG() {
 }
 
 // ── PDF Export ──
-async function exportPDF() {
-  pdfLoading.value = true
-  try {
-    if (!appState.chartSnapshot) {
-      alert('Please go to the Chart page first to generate a chart before exporting.')
-      return
+//
+// Renders the Time & Motion chart fresh at A4-optimised pixel
+// dimensions on an off-screen <canvas>, then places the resulting
+// PNG into a jsPDF document at an exact 1 : 1 mm mapping.
+// No image scaling → fonts stay crisp and gridlines automatically
+// fill the full 281 mm chart width.
+
+// Shared colour palette (mirrors ChartView)
+const ACTIVITY_COLORS = [
+  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+]
+
+// Shared helpers (mirrors ChartView)
+function parseTime(t) {
+  if (!t) return null
+  const parts = String(t).replace(/\./g, ':').split(':')
+  const h = parseInt(parts[0], 10)
+  const m = parseInt(parts[1], 10)
+  if (isNaN(h) || isNaN(m)) return null
+  return h * 60 + m
+}
+
+function minutesToTimeLabel(minutes) {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+// Build chart datasets grouped by activityName (mirrors ChartView)
+function buildChartDataForExport(filteredRows) {
+  const activityMap = new Map()
+  for (const row of filteredRows) {
+    const name = row.activityName || '(Unnamed)'
+    if (!activityMap.has(name)) activityMap.set(name, [])
+    activityMap.get(name).push(row)
+  }
+
+  const datasets = []
+  let colorIdx = 0
+
+  for (const [activityName, activityRows] of activityMap) {
+    activityRows.sort((a, b) => (a.timeIn || '').localeCompare(b.timeIn || ''))
+
+    const data = []
+    for (const row of activityRows) {
+      const tIn = parseTime(row.timeIn)
+      const tOut = parseTime(row.timeOut)
+      const sDepth = parseFloat(row.startDepth)
+      const eDepth = parseFloat(row.endDepth)
+
+      if (tIn !== null && tOut !== null) {
+        data.push({ x: tIn, y: !isNaN(sDepth) ? sDepth : 0 })
+        data.push({ x: tOut, y: !isNaN(eDepth) ? eDepth : 0 })
+        data.push(null) // segment break
+      }
     }
 
-    // ── 1. Extract dynamic values from appState ──
-    const rigValue  = appState.teamRig   || 'Unknown Rig'
-    const rawDate   = appState.logDate   || new Date().toISOString().slice(0, 10)
-    const project   = appState.projectName || 'Project Alpha'
+    while (data.length > 0 && data[data.length - 1] === null) {
+      data.pop()
+    }
 
-    // Reformat logDate from YYYY-MM-DD → DD-MM-YYYY
+    const color = ACTIVITY_COLORS[colorIdx % ACTIVITY_COLORS.length]
+    colorIdx++
+
+    datasets.push({
+      label: activityName,
+      data,
+      backgroundColor: color,
+      borderColor: color,
+      pointRadius: 5,
+      pointHoverRadius: 7,
+      showLine: true,
+      spanGaps: false,
+      tension: 0,
+    })
+  }
+
+  return { datasets }
+}
+
+// Build annotations — midpoint labels + refPoint bands (mirrors ChartView)
+// Rotation is pre-computed from data-space slopes × canvas pixel dimensions
+// so no afterRender plugin is required.
+function buildAnnotationsForExport(filteredRows, xMin, xMax, yMin, yMax, canvasW, canvasH) {
+  const annotations = {}
+
+  // -- activity colour lookup --
+  const activityColorMap = new Map()
+  {
+    const seen = new Set()
+    let ci = 0
+    for (const row of filteredRows) {
+      const name = row.activityName || '(Unnamed)'
+      if (!seen.has(name)) {
+        seen.add(name)
+        activityColorMap.set(name, ACTIVITY_COLORS[ci % ACTIVITY_COLORS.length])
+        ci++
+      }
+    }
+  }
+
+  // -- midpoint labels --
+  let labelIdx = 0
+  const xRange = xMax - xMin
+  const yRange = yMax - yMin
+
+  for (const row of filteredRows) {
+    const tIn = parseTime(row.timeIn)
+    const tOut = parseTime(row.timeOut)
+    const sDepth = parseFloat(row.startDepth)
+    const eDepth = parseFloat(row.endDepth)
+    if (tIn === null || tOut === null) continue
+
+    const sD = isNaN(sDepth) ? 0 : sDepth
+    const eD = isNaN(eDepth) ? 0 : eDepth
+    const midX = (tIn + tOut) / 2
+    const midY = (sD + eD) / 2
+
+    const actName = row.activityName || '(Unnamed)'
+    const color = activityColorMap.get(actName) || '#64748b'
+
+    // Pre-compute rotation from data-space slope + canvas pixel dimensions
+    const dxData = tOut - tIn
+    const dyData = eD - sD
+    const dxPx = xRange > 0 ? (dxData / xRange) * canvasW : 0
+    const dyPx = yRange > 0 ? (dyData / yRange) * canvasH : 0
+    const angle = Math.atan2(-dyPx, dxPx) * 180 / Math.PI
+
+    annotations[`mid-${labelIdx}`] = {
+      type: 'label',
+      xValue: midX,
+      yValue: midY,
+      content: actName.split(/\s+/),
+      font: { size: 8, weight: 'normal' },
+      color: color,
+      rotation: angle,
+      xAdjust: 0,
+      yAdjust: 0,
+      opacity: 0.85,
+      textAlign: 'center',
+    }
+    labelIdx++
+  }
+
+  // -- refPoint vertical bands --
+  const refPointMap = new Map()
+  for (const row of filteredRows) {
+    if (!row.refPoint) continue
+    if (!refPointMap.has(row.refPoint)) refPointMap.set(row.refPoint, [])
+    refPointMap.get(row.refPoint).push(row)
+  }
+
+  const refPointEntries = [...refPointMap.entries()]
+  refPointEntries.sort((a, b) => {
+    const aMin = Math.min(...a[1].map(r => parseTime(r.timeIn) || Infinity))
+    const bMin = Math.min(...b[1].map(r => parseTime(r.timeIn) || Infinity))
+    return aMin - bMin
+  })
+
+  let bandIdx = 0
+  const BAND_COLORS = ['rgba(59,130,246,0.07)', 'rgba(239,68,68,0.07)']
+
+  for (const [refPoint, refRows] of refPointEntries) {
+    const times = refRows.flatMap(r => [parseTime(r.timeIn), parseTime(r.timeOut)])
+    const validTimes = times.filter(t => t !== null)
+    if (validTimes.length === 0) continue
+
+    const bandXMin = Math.min(...validTimes) - 2
+    const bandXMax = Math.max(...validTimes) + 2
+
+    annotations[`band-${bandIdx}`] = {
+      type: 'box',
+      xMin: bandXMin,
+      xMax: bandXMax,
+      yMin: yMin,
+      yMax: yMax,
+      backgroundColor: BAND_COLORS[bandIdx % BAND_COLORS.length],
+      borderWidth: 0,
+    }
+
+    annotations[`band-label-${bandIdx}`] = {
+      type: 'label',
+      xValue: (bandXMin + bandXMax) / 2,
+      yValue: yMin - 0.75,
+      yAdjust: 0,
+      drawTime: 'afterDraw',
+      content: `${refRows[0].workType} ${refPoint}`,
+      font: { size: 12, weight: 'bold' },
+      color: '#1e293b',
+      backgroundColor: 'rgba(255,255,255,0.85)',
+      padding: { top: 2, bottom: 2, left: 6, right: 6 },
+      borderRadius: 4,
+    }
+    bandIdx++
+  }
+
+  return annotations
+}
+
+async function exportPDF() {
+  pdfLoading.value = true
+  let chartInstance = null
+  let containerEl = null
+
+  try {
+    // ── 1. Dynamic header values ──────────────────────────────────
+    const rigValue = appState.teamRig || 'Unknown Rig'
+    const rawDate  = appState.logDate || new Date().toISOString().slice(0, 10)
+    const project  = appState.projectName || 'Project Alpha'
+
     const [y, mo, d] = rawDate.split('-')
     const dateValue = `${d}-${mo}-${y}`
 
-    // ── 2. Build dynamic filename and header strings ──
     const title    = 'Time & Motion Chart'
     const subtitle = `${project} - ${rigValue} on ${dateValue}`
     const filename = `${subtitle}.pdf`
 
-    // ── 3. Load chart snapshot and measure natural pixel dimensions ──
-    const img = await new Promise((resolve, reject) => {
-      const image = new Image()
-      image.onload = () => resolve(image)
-      image.onerror = reject
-      image.src = appState.chartSnapshot
+    // ── 2. Filter rows to match current chart view ────────────────
+    const maxDate = appState.logRows
+      .map(r => r.logDate)
+      .filter(Boolean)
+      .sort()
+      .pop() || ''
+
+    const filterDate = maxDate
+    const filterTeam = appState.chartFilterTeam || ''
+
+    const filteredRows = appState.logRows.filter(r => {
+      if (filterDate && r.logDate !== filterDate) return false
+      if (filterTeam && r.teamRig !== filterTeam) return false
+      return true
     })
-    const naturalW = img.naturalWidth
-    const naturalH = img.naturalHeight
 
-    // ── 4. A4 landscape layout constants (297 × 210 mm) ──
-    const PAGE_W   = 297
-    const PAGE_H   = 210
-    const MARGIN   = 8      // mm — left, right, and bottom
-    const HEADER_H = 28     // mm — reserved for title + subtitle
+    if (!filteredRows.length) {
+      alert('No data to export for the current chart filters.')
+      return
+    }
 
-    const availW = PAGE_W - MARGIN * 2          // 281 mm
-    const availH = PAGE_H - HEADER_H - MARGIN   // 174 mm
+    // ── 3. Compute axis ranges from filtered data ─────────────────
+    let minTime = Infinity, maxTime = -Infinity, maxDepth = 10
+    for (const row of filteredRows) {
+      const tIn  = parseTime(row.timeIn)
+      const tOut = parseTime(row.timeOut)
+      if (tIn  !== null) { if (tIn  < minTime) minTime = tIn;  if (tIn  > maxTime) maxTime = tIn  }
+      if (tOut !== null) { if (tOut < minTime) minTime = tOut; if (tOut > maxTime) maxTime = tOut }
+      const sd = parseFloat(row.startDepth)
+      const ed = parseFloat(row.endDepth)
+      if (!isNaN(sd) && sd > maxDepth) maxDepth = sd
+      if (!isNaN(ed) && ed > maxDepth) maxDepth = ed
+    }
+    const xMin = minTime !== Infinity  ? Math.floor(minTime / 60) * 60 - 60 : 360
+    const xMax = maxTime !== -Infinity ? Math.ceil(maxTime  / 60) * 60 + 60 : 1320
+    const yMin = 0
+    const yMax = Math.ceil(maxDepth) + 1
 
-    // ── 5. Compute scale factor — preserve aspect ratio, no clipping ──
-    const scaleX  = availW / naturalW
-    const scaleY  = availH / naturalH
-    const scale   = Math.min(scaleX, scaleY)
+    // ── 4. A4 layout constants (landscape, mm) ────────────────────
+    const PAGE_W    = 297
+    const PAGE_H    = 210
+    const MARGIN    = 8
+    const HEADER_H  = 28
 
-    const finalW  = naturalW * scale
-    const finalH  = naturalH * scale
+    const CHART_MM_W = PAGE_W - MARGIN * 2            // 281 mm
+    const CHART_MM_H = PAGE_H - HEADER_H - MARGIN     // 174 mm
 
-    // Center chart horizontally in available width
-    const xOffset = MARGIN + (availW - finalW) / 2
-    const yOffset = HEADER_H                    // chart starts below header
+    // ── 5. Canvas pixel dimensions at 150 DPI ─────────────────────
+    // 150 DPI ensures crisp output; 1 px ≈ 0.169 mm
+    const DPI       = 150
+    const MM_TO_PX  = DPI / 25.4                       // ≈ 5.9055 px/mm
+    const CANVAS_W  = Math.round(CHART_MM_W * MM_TO_PX) // ≈ 1659 px
+    const CANVAS_H  = Math.round(CHART_MM_H * MM_TO_PX) // ≈ 1028 px
 
-    // ── 6. Compose PDF with jsPDF ──
+    // ── 6. Build chart data & annotations ──────────────────────────
+    const chartData   = buildChartDataForExport(filteredRows)
+    const annotations = buildAnnotationsForExport(
+      filteredRows, xMin, xMax, yMin, yMax, CANVAS_W, CANVAS_H,
+    )
+
+    // ── 7. Create off-screen canvas ────────────────────────────────
+    containerEl = document.createElement('div')
+    containerEl.style.cssText = 'position:fixed;left:-9999px;top:-9999px;'
+    const canvasEl = document.createElement('canvas')
+    canvasEl.width  = CANVAS_W
+    canvasEl.height = CANVAS_H
+    containerEl.appendChild(canvasEl)
+    document.body.appendChild(containerEl)
+
+    // ── 8. Import Chart.js + annotation plugin ────────────────────
+    const [
+      { Chart: ChartJS, LinearScale, PointElement, LineElement, Tooltip, Legend },
+      { default: annotationPlugin },
+    ] = await Promise.all([
+      import('chart.js'),
+      import('chartjs-plugin-annotation'),
+    ])
+    ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend)
+    ChartJS.register(annotationPlugin)
+
+    // ── 9. Instantiate chart at A4 pixel dimensions ───────────────
+    chartInstance = new ChartJS(canvasEl, {
+      type: 'scatter',
+      data: chartData,
+      options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        animation: false,
+        devicePixelRatio: 1,
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false },
+          annotation: { annotations },
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: xMin,
+            max: xMax,
+            title: {
+              display: true,
+              text: 'Time',
+              font: { size: 14, weight: 'bold' },
+            },
+            ticks: {
+              stepSize: 60,
+              callback(val) { return minutesToTimeLabel(val) },
+              font: { size: 12 },
+            },
+            grid: { color: '#e2e8f0', drawOnChartArea: true },
+            afterBuildTicks(axis) {
+              axis.ticks = axis.ticks.filter(t => t.value % 60 === 0)
+            },
+          },
+          y: {
+            type: 'linear',
+            offset: true,
+            min: yMin,
+            max: yMax,
+            title: {
+              display: true,
+              text: 'Depth below ground (m)',
+              font: { size: 14, weight: 'bold' },
+            },
+            ticks: {
+              callback(val) { return val + ' m' },
+              font: { size: 12 },
+            },
+            grid: { color: '#e2e8f0', drawOnChartArea: true },
+          },
+        },
+      },
+    })
+
+    // ── 10. Wait for chart to fully render ────────────────────────
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    // ── 11. Export canvas to PNG ──────────────────────────────────
+    const pngDataUrl = canvasEl.toDataURL('image/png')
+
+    // ── 12. Clean up off-screen DOM ───────────────────────────────
+    chartInstance.destroy()
+    chartInstance = null
+    document.body.removeChild(containerEl)
+    containerEl = null
+
+    // ── 13. Compose PDF with jsPDF ────────────────────────────────
     const { default: jsPDF } = await import('jspdf')
     const pdf = new jsPDF('l', 'mm', 'a4')
 
-    // Title — bold, 16pt, centered
+    // Title
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(16)
     pdf.text(title, PAGE_W / 2, MARGIN + 6, { align: 'center' })
 
-    // Subtitle — normal, 11pt, centered
+    // Subtitle
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(11)
     pdf.text(subtitle, PAGE_W / 2, MARGIN + 16, { align: 'center' })
 
-    // Chart image — fitted within available area, no clipping
-    pdf.addImage(appState.chartSnapshot, 'PNG', xOffset, yOffset, finalW, finalH)
+    // Chart — placed at exact mm dimensions, 1:1 pixel→mm
+    pdf.addImage(pngDataUrl, 'PNG', MARGIN, HEADER_H, CHART_MM_W, CHART_MM_H)
 
-    // ── 7. Trigger local device save ──
-    // No DOM nodes were created, so no cleanup needed
+    // ── 14. Save ──────────────────────────────────────────────────
     pdf.save(filename)
   } catch (e) {
+    console.error('PDF export failed:', e)
     alert('Failed to export PDF: ' + e.message)
   } finally {
+    // Ensure cleanup even on error
+    if (chartInstance) {
+      try { chartInstance.destroy() } catch (_) { /* ignore */ }
+    }
+    if (containerEl && containerEl.parentNode) {
+      try { document.body.removeChild(containerEl) } catch (_) { /* ignore */ }
+    }
     pdfLoading.value = false
   }
 }
