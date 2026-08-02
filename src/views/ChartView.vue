@@ -559,8 +559,12 @@ async function captureSnapshot() {
   const canvas = await html2canvas(wrapper, {
     scale: 2,
     backgroundColor: '#ffffff',
-    // exclude the action-bar buttons from the snapshot
-    ignoreElements: (el) => el.classList.contains('action-bar'),
+    // exclude UI chrome from the snapshot (header/title/controls are added programmatically by exportPDF)
+    ignoreElements: (el) =>
+      el.classList.contains('action-bar') ||
+      el.classList.contains('chart-meta') ||
+      el.classList.contains('chart-controls') ||
+      el.tagName === 'H2',
   })
   appState.chartSnapshot = canvas.toDataURL('image/png')
 }
