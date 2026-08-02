@@ -333,7 +333,7 @@ function openTimePicker(row, field) {
   timePickerRow.value = row
   timePickerField.value = field
   timePickerValue.value = row[field] || ''
-  timePickerTitle.value = row.activity || ''
+  timePickerTitle.value = row.activityName || ''
   // Find preceding row in sortedRows for copy-last button
   const idx = sortedRows.value.findIndex(r => r.id === row.id)
   if (idx > 0) {
@@ -380,7 +380,7 @@ function openDepthPicker(row, field) {
   depthPickerRow.value = row
   depthPickerField.value = field
   depthPickerValue.value = row[field] || ''
-  depthPickerTitle.value = row.activity || ''
+  depthPickerTitle.value = row.activityName || ''
   // Find preceding row in sortedRows for copy-last button
   const idx = sortedRows.value.findIndex(r => r.id === row.id)
   if (idx > 0) {
