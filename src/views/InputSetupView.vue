@@ -30,7 +30,7 @@
             placeholder="Select or type rig…"
             taggable
             push-tags
-            required
+            @open="onSelectOpen"
           />
         </div>
         <div class="field field-half">
@@ -106,6 +106,7 @@
           push-tags
           @search="onActivitySearch"
           @search:blur="confirmTypedActivity"
+          @open="onSelectOpen"
           ref="selectRef"
         />
       </div>
@@ -194,7 +195,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { appState, submitFormRows } from '../store/appState.js'
 import { dropdowns, hiddenItems } from '../store/dropdowns.js'
@@ -305,6 +306,19 @@ const currentOptions = computed(() => {
 // ── v-select type-to-add: confirm on blur or Enter ────────────
 const selectRef = ref(null)
 const typedActivity = ref('')
+
+// ── Prevent mobile keyboard on initial v-select open ──────────
+function onSelectOpen() {
+  nextTick(() => {
+    // Blur the vue-select search input so mobile keyboard doesn't pop up on first tap.
+    // The user can re-tap the search box to type.
+    const root = selectRef.value?.$el?.parentElement?.querySelector('.vs__search')
+    const searchInput = root || document.querySelector('.vs--open .vs__search')
+    if (searchInput instanceof HTMLInputElement) {
+      searchInput.blur()
+    }
+  })
+}
 
 function onActivitySearch(val) {
   typedActivity.value = val
