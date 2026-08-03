@@ -275,12 +275,12 @@ const currentTimeOut = computed(() => appState[currentTab.value.timeOutKey])
 
 const currentStartDepth = computed({
   get: () => appState[currentTab.value.startDepthKey],
-  set: (v) => { appState[currentTab.value.startDepthKey] = v },
+  set: (v) => { appState[currentTab.value.startDepthKey] = (v === '' || v == null) ? '0.0' : v },
 })
 
 const currentEndDepth = computed({
   get: () => appState[currentTab.value.endDepthKey],
-  set: (v) => { appState[currentTab.value.endDepthKey] = v },
+  set: (v) => { appState[currentTab.value.endDepthKey] = (v === '' || v == null) ? '0.0' : v },
 })
 
 // ── Dropdown options per tab ──────────────────────────────────
