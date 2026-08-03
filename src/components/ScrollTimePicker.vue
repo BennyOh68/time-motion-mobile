@@ -66,36 +66,32 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'update:visible'])
 
-// ── Copy-last button: apply copyValue as the selected time and confirm ──
-function applyCopyValue() {
-  if (!props.copyValue) return
-  const [h, m] = props.copyValue.split(':')
-  if (h && m) {
-    selectedHour.value = h
-    selectedMinute.value = m
-    nextTick(() => {
-      scrollToActive()
-      // Emit after the scroll, using confirm logic
-      const display = formatDisplay(selectedHour.value, selectedMinute.value)
-      emit('update:modelValue', display)
-      emit('update:visible', false)
-    })
-  }
-}
+// ── Infinite cyclic drum constants ──────────────────────────────
+const REPEATS = 5
+const REPEATS_MID = Math.floor(REPEATS / 2) // middle repetition index
 
-// Generate hours 07–21 with am/pm labels
-const hours = Array.from({ length: 15 }, (_, i) => {
-  const val = i + 7 // 7..21
+// Base hour list: full 24h cycle starting at 07, displayed as 12h am/pm
+const HOUR_BASE = Array.from({ length: 24 }, (_, i) => {
+  const val = (i + 7) % 24 // 7,8,…,23,0,1,…,6
   const ampm = val < 12 ? 'am' : 'pm'
-  const display = val <= 12 ? val : val - 12
+  const display = val === 0 ? 12 : (val > 12 ? val - 12 : val)
   return {
     value: String(val).padStart(2, '0'),
     label: `${String(display).padStart(2, '0')} ${ampm}`,
   }
 })
 
-// Generate minutes 00, 05, 10, ..., 55
-const minutes = Array.from({ length: 12 }, (_, i) => i * 5)
+// Flattened repeated arrays for the template v-for
+const hours = []
+for (let r = 0; r < REPEATS; r++) {
+  for (const h of HOUR_BASE) hours.push(h)
+}
+
+const MINUTE_BASE = Array.from({ length: 12 }, (_, i) => i * 5) // 0,5,10,…,55
+const minutes = []
+for (let r = 0; r < REPEATS; r++) {
+  for (const m of MINUTE_BASE) minutes.push(m)
+}
 
 const selectedHour = ref('07')
 const selectedMinute = ref('00')
@@ -107,6 +103,22 @@ const minTrackRef = ref(null)
 let hourScrollTimer = null
 let minScrollTimer = null
 
+// ── Copy-last button: apply copyValue as the selected time and confirm ──
+function applyCopyValue() {
+  if (!props.copyValue) return
+  const [h, m] = props.copyValue.split(':')
+  if (h && m) {
+    selectedHour.value = h
+    selectedMinute.value = m
+    nextTick(() => {
+      scrollToActive()
+      const display = formatDisplay(selectedHour.value, selectedMinute.value)
+      emit('update:modelValue', display)
+      emit('update:visible', false)
+    })
+  }
+}
+
 // ── Parse incoming modelValue on open ──
 watch(
   () => props.visible,
@@ -114,14 +126,13 @@ watch(
     if (isVisible) {
       if (props.modelValue) {
         const [h, m] = props.modelValue.split(':')
-        if (h && hours.some(x => x.value === h)) selectedHour.value = h
+        if (h && HOUR_BASE.some(x => x.value === h)) selectedHour.value = h
         if (m) selectedMinute.value = m
       } else {
         selectedHour.value = '07'
         selectedMinute.value = '00'
       }
       await nextTick()
-      // Wait for layout before scrolling into position
       requestAnimationFrame(() => {
         scrollToActive()
       })
@@ -129,32 +140,62 @@ watch(
   }
 )
 
+/**
+ * Scroll the given track so that the item at `midIdx` (in the middle repetition)
+ * is centered in the visible area.
+ */
 function scrollToActive() {
   if (hourTrackRef.value) {
-    const el = hourTrackRef.value
-    const idx = hours.findIndex(h => h.value === selectedHour.value)
-    const item = el.querySelectorAll('.scroll-item')[idx]
-    if (item) {
-      el.scrollTop = item.offsetTop - el.clientHeight / 2 + item.offsetHeight / 2
+    const baseIdx = HOUR_BASE.findIndex(h => h.value === selectedHour.value)
+    if (baseIdx !== -1) {
+      const midIdx = baseIdx + REPEATS_MID * 24
+      const item = hourTrackRef.value.querySelectorAll('.scroll-item')[midIdx]
+      if (item) {
+        hourTrackRef.value.scrollTop = item.offsetTop -
+          hourTrackRef.value.clientHeight / 2 +
+          item.offsetHeight / 2
+      }
     }
   }
   if (minTrackRef.value) {
-    const el = minTrackRef.value
-    const idx = minutes.findIndex(m => String(m).padStart(2, '0') === selectedMinute.value)
-    const item = el.querySelectorAll('.scroll-item')[idx]
-    if (item) {
-      el.scrollTop = item.offsetTop - el.clientHeight / 2 + item.offsetHeight / 2
+    const baseIdx = MINUTE_BASE.findIndex(
+      m => String(m).padStart(2, '0') === selectedMinute.value,
+    )
+    if (baseIdx !== -1) {
+      const midIdx = baseIdx + REPEATS_MID * 12
+      const item = minTrackRef.value.querySelectorAll('.scroll-item')[midIdx]
+      if (item) {
+        minTrackRef.value.scrollTop = item.offsetTop -
+          minTrackRef.value.clientHeight / 2 +
+          item.offsetHeight / 2
+      }
     }
   }
 }
 
+/**
+ * Re-center a track silently (no animation) around its middle repetition.
+ * Used after a scroll-stop so the drum never hits an edge.
+ */
+function recenterTrack(trackEl, baseIdx, baseLength) {
+  if (!trackEl) return
+  const midIdx = baseIdx + REPEATS_MID * baseLength
+  const item = trackEl.querySelectorAll('.scroll-item')[midIdx]
+  if (item) {
+    trackEl.scrollTop = item.offsetTop -
+      trackEl.clientHeight / 2 +
+      item.offsetHeight / 2
+  }
+}
+
 // ── Scroll detection: find item closest to center after scroll stops ──
-function getClosestItem(trackEl, values, valueKey) {
+// Returns { value, globalIndex } or null
+function getClosestItem(trackEl, values, extractFn) {
   if (!trackEl) return null
   const trackRect = trackEl.getBoundingClientRect()
   const centerY = trackRect.top + trackRect.height / 2
   const items = trackEl.querySelectorAll('.scroll-item')
-  let closest = null
+  let closestIdx = -1
   let minDist = Infinity
   items.forEach((item, i) => {
     const rect = item.getBoundingClientRect()
@@ -162,32 +203,39 @@ function getClosestItem(trackEl, values, valueKey) {
     const dist = Math.abs(centerY - itemCenter)
     if (dist < minDist) {
       minDist = dist
-      closest = valueKey ? values[i][valueKey] : values[i]
+      closestIdx = i
     }
   })
-  return closest
+  if (closestIdx === -1) return null
+  const value = extractFn ? extractFn(values[closestIdx]) : values[closestIdx]
+  return { value, globalIndex: closestIdx }
 }
 
 function onHourScroll() {
   clearTimeout(hourScrollTimer)
   hourScrollTimer = setTimeout(() => {
-    const closest = getClosestItem(hourTrackRef.value, hours, 'value')
-    if (closest !== null && closest !== selectedHour.value) {
-      selectedHour.value = closest
+    const result = getClosestItem(hourTrackRef.value, hours, null)
+    if (!result) return
+    const baseIdx = result.globalIndex % 24
+    const baseItem = HOUR_BASE[baseIdx]
+    if (baseItem.value !== selectedHour.value) {
+      selectedHour.value = baseItem.value
     }
+    recenterTrack(hourTrackRef.value, baseIdx, 24)
   }, 100)
 }
 
 function onMinScroll() {
   clearTimeout(minScrollTimer)
   minScrollTimer = setTimeout(() => {
-    const closest = getClosestItem(minTrackRef.value, minutes, null)
-    if (closest !== null) {
-      const val = String(closest).padStart(2, '0')
-      if (val !== selectedMinute.value) {
-        selectedMinute.value = val
-      }
+    const result = getClosestItem(minTrackRef.value, minutes, null)
+    if (!result) return
+    const baseIdx = result.globalIndex % 12
+    const baseVal = String(MINUTE_BASE[baseIdx]).padStart(2, '0')
+    if (baseVal !== selectedMinute.value) {
+      selectedMinute.value = baseVal
     }
+    recenterTrack(minTrackRef.value, baseIdx, 12)
   }, 100)
 }
 
