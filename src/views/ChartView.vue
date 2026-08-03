@@ -237,13 +237,14 @@ function buildChartData() {
           x: tOut,
           y: !isNaN(eDepth) ? eDepth : 0,
         })
-        // null separator — breaks line between segments of same activity
-        data.push(null)
+        // NaN separator — breaks line between segments of same activity
+        // Chart.js Scatter showLine properly skips NaN points, unlike null
+        data.push({ x: NaN, y: NaN })
       }
     }
 
-    // Remove trailing null separator if present
-    while (data.length > 0 && data[data.length - 1] === null) {
+    // Remove trailing NaN separator if present
+    while (data.length > 0 && isNaN(data[data.length - 1]?.x)) {
       data.pop()
     }
 
