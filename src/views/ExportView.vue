@@ -303,16 +303,29 @@ function buildAnnotationsForExport(filteredRows, xMin, xMax, yMin, yMax, canvasW
     const dyPx = yRange > 0 ? (dyData / yRange) * canvasH : 0
     const angle = Math.atan2(-dyPx, dxPx) * 180 / Math.PI
 
+    // Perpendicular offset (same logic as labelRotatorPlugin in ChartView)
+    const angleRad = Math.atan2(-dyPx, dxPx)
+    const sinA = Math.abs(Math.sin(angleRad))
+    const cosA = Math.abs(Math.cos(angleRad))
+    let xAdj, yAdj
+    if (sinA < 0.1) {
+      xAdj = 0; yAdj = -22
+    } else {
+      const offset = 5 / Math.max(cosA, 0.15)
+      xAdj = offset * Math.sin(angleRad)
+      yAdj = -offset * Math.cos(angleRad)
+    }
+
     annotations[`mid-${labelIdx}`] = {
       type: 'label',
       xValue: midX,
       yValue: midY,
       content: actName.split(/\s+/),
-      font: { size: 8, weight: 'normal' },
+      font: { size: 12, weight: 'normal' },
       color: color,
       rotation: angle,
-      xAdjust: 0,
-      yAdjust: 0,
+      xAdjust: xAdj,
+      yAdjust: yAdj,
       opacity: 0.85,
       textAlign: 'center',
     }

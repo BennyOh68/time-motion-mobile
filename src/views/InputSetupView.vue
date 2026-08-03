@@ -310,12 +310,16 @@ const typedActivity = ref('')
 // ── Prevent mobile keyboard on initial v-select open ──────────
 function onSelectOpen() {
   nextTick(() => {
-    // Blur the vue-select search input so mobile keyboard doesn't pop up on first tap.
-    // The user can re-tap the search box to type.
+    // Set search input to readonly so mobile keyboard doesn't pop up on first tap.
+    // Using readonly instead of blur() — blur() closes the dropdown on some browsers.
+    // The user can re-tap the search box to type (readonly is removed on focus).
     const root = selectRef.value?.$el?.parentElement?.querySelector('.vs__search')
     const searchInput = root || document.querySelector('.vs--open .vs__search')
     if (searchInput instanceof HTMLInputElement) {
-      searchInput.blur()
+      searchInput.setAttribute('readonly', 'readonly')
+      searchInput.addEventListener('focus', () => {
+        searchInput.removeAttribute('readonly')
+      }, { once: true })
     }
   })
 }
@@ -619,13 +623,15 @@ h2 {
 .field-row {
   display: flex;
   gap: 10px;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
 }
 
 .setup-row {
   gap: 16px;
   align-items: flex-start;
+  position: relative;
+  z-index: 10;
 }
 
 .field-half {

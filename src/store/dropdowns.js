@@ -12,8 +12,10 @@ const DEFAULT_RIGS = [
 ]
 
 const DEFAULT_PREPARATION = [
+  'Permit to work',
   'Toolbox meeting',
   'Platform leveling',
+  'Rig positioning',
   'Rig shifting',
   'Peg setting',
   'Casing installation',
@@ -21,28 +23,29 @@ const DEFAULT_PREPARATION = [
 
 const DEFAULT_PRODUCTION = [
   'Drilling',
+  'RE/RTO inspection',
   'Grouting',
+  'Rod extraction',
   'Hard drilling',
-  'Obstruction drilling',
+  'Obstruction probing',
 ]
 
 const DEFAULT_WAITS = [
   'Lunch',
-  'Main contractor confirmation',
+  'Rig maintenance',
+  'Tool damaged',
+  'Soil clearance',
+  'Material clearance',
+  'Waiting RE/RTO',
+  'Waiting Client',
+  'Safety PGI',
+  'Safety Time Out',
   'NCE permit',
   'Singtel permit',
   'Netlink Trust permit',
   'PUB permit',
   'SPPG permit',
-  'Permits to work',
-  'RE/RTO inspection',
-  'Material clearance',
-  'Soil clearance',
-  '3rd party clearance',
-  'Safety PGI',
-  'Safety Time Out',
-  'Rig repair / maintenance',
-  'Tool damaged',
+  'Blocked access',
   'Dinner',
 ]
 
