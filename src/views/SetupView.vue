@@ -197,7 +197,7 @@ function moveUp(idx) {
   const list = dropdowns[key]
   const [item] = list.splice(idx, 1)
   list.splice(idx - 1, 0, item)
-  shiftHiddenAfterMove(key, idx + 1, idx)
+  swapHidden(key, idx, idx - 1)
   focusedIndex.value = idx - 1
   nextTick(() => {
     const el = inputRefs.value[focusedIndex.value]
@@ -211,7 +211,7 @@ function moveDown(idx) {
   if (idx >= list.length - 1) return
   const [item] = list.splice(idx, 1)
   list.splice(idx + 1, 0, item)
-  shiftHiddenAfterMove(key, idx, idx + 1)
+  swapHidden(key, idx, idx + 1)
   focusedIndex.value = idx + 1
   nextTick(() => {
     const el = inputRefs.value[focusedIndex.value]
@@ -219,21 +219,14 @@ function moveDown(idx) {
   })
 }
 
-function shiftHiddenAfterMove(hiddenKey, oldIdx, newIdx) {
+function swapHidden(hiddenKey, a, b) {
   const hidden = hiddenItems[hiddenKey]
-  if (!hidden) return
-  const newHidden = {}
-  for (const [i, val] of Object.entries(hidden)) {
-    const idx = parseInt(i, 10)
-    if (idx === oldIdx - 1) {
-      // item that was at oldIdx-1 shifted down to oldIdx
-      if (val) newHidden[newIdx] = true
-    } else {
-      newHidden[idx] = val
-    }
-  }
-  // Get the moved item's new hidden state
-  hiddenItems[hiddenKey] = newHidden
+  const hasA = hidden[a] === true
+  const hasB = hidden[b] === true
+  if (hasB) hidden[a] = true
+  else delete hidden[a]
+  if (hasA) hidden[b] = true
+  else delete hidden[b]
 }
 
 function resetAll() {

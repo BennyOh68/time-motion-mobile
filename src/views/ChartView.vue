@@ -90,11 +90,11 @@ const labelRotatorPlugin = {
       const cosA = Math.abs(Math.cos(angleRad))
       let xAdj, yAdj
       if (sinA < 0.1) {
-        // Nearly horizontal line: fixed 16px vertical offset above
+        // Nearly horizontal line: fixed vertical offset above (scaled for font size 14)
         xAdj = 0
-        yAdj = -16
+        yAdj = -22
       } else {
-        const offset = 3 / Math.max(cosA, 0.15)
+        const offset = 5 / Math.max(cosA, 0.15)
         xAdj = offset * Math.sin(angleRad)
         yAdj = -offset * Math.cos(angleRad)
       }
@@ -103,7 +103,7 @@ const labelRotatorPlugin = {
       const midPX = (px1 + px2) / 2
       const midPY = (py1 + py2) / 2
       for (const used of usedPositions) {
-        if (Math.abs(used.pxX - (midPX + xAdj)) < 60 && Math.abs(used.adjY - (midPY + yAdj)) < 18) {
+        if (Math.abs(used.pxX - (midPX + xAdj)) < 60 && Math.abs(used.adjY - (midPY + yAdj)) < 26) {
           xAdj = -xAdj   // flip perpendicular direction
           yAdj = -yAdj
           break
@@ -315,7 +315,7 @@ function buildAnnotations(xMin, xMax, yMin, yMax) {
       _tOut: tOut,
       _eD: eD,
       content: actName.split(/\s+/),
-      font: { size: 9, weight: 'normal' },
+      font: { size: 14, weight: 'normal' },
       color: color,
       rotation: 0,       // set by labelRotatorPlugin afterRender
       xAdjust: 0,        // set by labelRotatorPlugin (perpendicular x)
@@ -374,7 +374,7 @@ function buildAnnotations(xMin, xMax, yMin, yMax) {
       yAdjust: 0,
       drawTime: 'afterDraw',
       content: `${refRows[0].workType} ${refPoint}`,
-      font: { size: 12, weight: 'bold' },
+      font: { size: 13, weight: 'bold' },
       color: '#1e293b',
       backgroundColor: 'rgba(255,255,255,0.85)',
       padding: { top: 2, bottom: 2, left: 6, right: 6 },
