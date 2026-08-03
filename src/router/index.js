@@ -55,19 +55,24 @@ const router = createRouter({
 
 // Navigation guard
 router.beforeEach(async (to, _from, next) => {
-  if (to.meta.requiresAuth) {
-    const { data } = await supabase.auth.getSession()
-    if (!data.session) {
-      return next({ name: 'Login' })
+  try {
+    if (to.meta.requiresAuth) {
+      const { data } = await supabase.auth.getSession()
+      if (!data.session) {
+        return next({ name: 'Login' })
+      }
     }
-  }
-  if (to.meta.requiresGuest) {
-    const { data } = await supabase.auth.getSession()
-    if (data.session) {
-      return next({ name: 'InputSetup' })
+    if (to.meta.requiresGuest) {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        return next({ name: 'InputSetup' })
+      }
     }
+    next()
+  } catch {
+    // On Supabase unavailability, allow navigation; views handle missing auth gracefully
+    next()
   }
-  next()
 })
 
 export default router
