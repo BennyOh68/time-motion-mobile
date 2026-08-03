@@ -198,11 +198,8 @@ function moveUp(idx) {
   const [item] = list.splice(idx, 1)
   list.splice(idx - 1, 0, item)
   swapHidden(key, idx, idx - 1)
+  clearTimeout(blurTimer)
   focusedIndex.value = idx - 1
-  nextTick(() => {
-    const el = inputRefs.value[focusedIndex.value]
-    if (el) el.focus()
-  })
 }
 
 function moveDown(idx) {
@@ -212,11 +209,8 @@ function moveDown(idx) {
   const [item] = list.splice(idx, 1)
   list.splice(idx + 1, 0, item)
   swapHidden(key, idx, idx + 1)
+  clearTimeout(blurTimer)
   focusedIndex.value = idx + 1
-  nextTick(() => {
-    const el = inputRefs.value[focusedIndex.value]
-    if (el) el.focus()
-  })
 }
 
 function swapHidden(hiddenKey, a, b) {

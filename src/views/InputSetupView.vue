@@ -635,6 +635,10 @@ h2 {
   z-index: 10;
 }
 
+.setup-row:nth-child(2) {
+  z-index: 20;
+}
+
 .field-half {
   flex: 1;
   min-width: 0;
@@ -885,7 +889,7 @@ h2 {
 }
 
 /* ── vue-select overrides ── */
-.vs__dropdown-toggle {
+:deep(.vs__dropdown-toggle) {
   padding: 10px 12px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -893,78 +897,80 @@ h2 {
   min-height: 48px;
 }
 
-.vs__dropdown-toggle:hover {
+:deep(.vs__dropdown-toggle:hover) {
   border-color: #94a3b8;
 }
 
-.vs--open .vs__dropdown-toggle {
+:deep(.vs--open .vs__dropdown-toggle) {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
-.vs__search,
-.vs__search:focus {
+:deep(.vs__search),
+:deep(.vs__search:focus) {
   font-size: 16px;
   padding: 0;
   margin: 0;
   color: #1e293b;
 }
 
-.vs__selected-options {
+:deep(.vs__selected-options) {
   padding: 0;
   flex-wrap: nowrap;
 }
 
-.vs__selected {
+:deep(.vs__selected) {
   margin: 0;
   padding: 0;
   font-size: 16px;
   color: #1e293b;
 }
 
-.vs__actions {
+:deep(.vs__actions) {
   padding: 0;
 }
 
-.vs__open-indicator {
+:deep(.vs__open-indicator) {
   fill: #94a3b8;
   transform: scale(0.8);
 }
 
-.vs--open .vs__open-indicator {
+:deep(.vs--open .vs__open-indicator) {
   transform: scale(0.8) rotate(180deg);
   fill: #3b82f6;
 }
 
-.vs__clear {
+:deep(.vs__clear) {
   fill: #94a3b8;
 }
 
-.vs__dropdown-menu {
+:deep(.vs__dropdown-menu) {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   padding: 4px 0;
   font-size: 16px;
+  background: #fff;
 }
 
-.vs__dropdown-option {
+:deep(.vs__dropdown-option) {
   padding: 10px 14px;
   color: #1e293b;
   cursor: pointer;
+  background: #fff;
 }
 
-.vs__dropdown-option--highlight {
+:deep(.vs__dropdown-option--highlight) {
   background: #eff6ff;
   color: #3b82f6;
 }
 
-.vs__dropdown-option--selected {
+:deep(.vs__dropdown-option--selected) {
   background: #dbeafe;
   color: #1e40af;
 }
 
-.vs__no-options {
+:deep(.vs__no-options) {
   padding: 10px 14px;
   color: #94a3b8;
   font-size: 14px;
