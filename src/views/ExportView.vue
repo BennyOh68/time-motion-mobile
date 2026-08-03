@@ -280,6 +280,7 @@ function buildAnnotationsForExport(filteredRows, xMin, xMax, yMin, yMax, canvasW
   let labelIdx = 0
   const xRange = xMax - xMin
   const yRange = yMax - yMin
+  const usedPositions = [] // collision avoidance tracking
 
   for (const row of filteredRows) {
     const tIn = parseTime(row.timeIn)
@@ -315,6 +316,18 @@ function buildAnnotationsForExport(filteredRows, xMin, xMax, yMin, yMax, canvasW
       xAdj = offset * Math.sin(angleRad)
       yAdj = -offset * Math.cos(angleRad)
     }
+
+    // Collision avoidance: flip to opposite side of line if overlapping
+    const midPX = xRange > 0 ? ((midX - xMin) / xRange) * canvasW : 0
+    const midPY = yRange > 0 ? canvasH - ((midY - yMin) / yRange) * canvasH : 0
+    for (const used of usedPositions) {
+      if (Math.abs(used.pxX - (midPX + xAdj)) < 60 && Math.abs(used.pyY - (midPY + yAdj)) < 26) {
+        xAdj = -xAdj   // flip perpendicular direction
+        yAdj = -yAdj
+        break
+      }
+    }
+    usedPositions.push({ pxX: midPX + xAdj, pyY: midPY + yAdj })
 
     annotations[`mid-${labelIdx}`] = {
       type: 'label',
