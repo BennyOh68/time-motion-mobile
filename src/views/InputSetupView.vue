@@ -372,19 +372,19 @@ const pickerModelValue = ref('')
 const pickerRef = ref(null)
 
 function openPicker(target) {
-  pickerTarget.value = target
   const tab = TABS[activeTab.value]
+  const stateKey = target === 'timeIn' ? tab.timeInKey : tab.timeOutKey
+  pickerTarget.value = stateKey
 
   // Time Out default: if empty, pre-fill with the current tab's Time In
   if (target === 'timeOut') {
-    const timeOutKey = tab.timeOutKey
-    if (!appState[timeOutKey] && appState[tab.timeInKey]) {
+    if (!appState[stateKey] && appState[tab.timeInKey]) {
       pickerModelValue.value = appState[tab.timeInKey]
     } else {
-      pickerModelValue.value = appState[timeOutKey] || ''
+      pickerModelValue.value = appState[stateKey] || ''
     }
   } else {
-    pickerModelValue.value = appState[target] || ''
+    pickerModelValue.value = appState[stateKey] || ''
   }
   pickerVisible.value = true
 }
