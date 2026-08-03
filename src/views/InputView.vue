@@ -6,100 +6,52 @@
       <span class="info-right">{{ formattedDate }}</span>
     </div>
 
-    <!-- ═══ Segment 1: Preparation ═══ -->
-    <div class="segment">
-      <div class="segment-header">
-        <span>1. Preparation Work</span>
-      </div>
-      <div class="field">
-        <label>Activity</label>
-        <v-select
-          v-model="appState.prepActivity"
-          :options="prepOptions"
-          placeholder="Select or type activity…"
-          taggable
-          push-tags
-        />
-      </div>
-      <div class="field-row">
-        <div class="field half">
-          <label>Time In</label>
-          <input
-            type="text"
-            readonly
-            :value="appState.prepTimeIn"
-            placeholder="Tap to select"
-            class="time-input"
-            @click="openPicker('prepTimeIn')"
-          />
-        </div>
-        <div class="field half">
-          <label>Time Out</label>
-          <input
-            type="text"
-            readonly
-            :value="appState.prepTimeOut"
-            placeholder="Tap to select"
-            class="time-input"
-            @click="openPicker('prepTimeOut')"
-          />
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field half">
-          <label>Start Depth (m)</label>
-          <input
-            v-model="appState.prepStartDepth"
-            type="number"
-            step="0.1"
-            min="0"
-            placeholder="0.0"
-          />
-        </div>
-        <div class="field half">
-          <label>End Depth (m)</label>
-          <input
-            v-model="appState.prepEndDepth"
-            type="number"
-            step="0.1"
-            min="0"
-            placeholder="0.0"
-          />
-        </div>
-      </div>
-      <div class="segment-actions">
-        <button class="btn-undo" @click="undoLastSegment('Preparation', 'prep')">↩ Undo</button>
-        <button class="btn-add-segment" @click="submitSegment('prep')">+ Add</button>
-      </div>
+    <!-- ═══ Tab Bar ═══ -->
+    <div class="tab-bar">
+      <button
+        v-for="(tab, key) in TABS"
+        :key="key"
+        class="tab-btn"
+        :class="{ active: activeTab === key }"
+        @click="activeTab = key"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
-    <hr class="separator-line" />
-
-    <!-- ═══ Segment 2: Production ═══ -->
+    <!-- ═══ Single Segment Panel (content switches per tab) ═══ -->
     <div class="segment">
       <div class="segment-header">
-        <span>2. Production Work</span>
+        <span>{{ TABS[activeTab].label }}</span>
       </div>
+
+      <!-- Activity — taggable combo dropdown -->
       <div class="field">
         <label>Activity</label>
         <v-select
-          v-model="appState.prodActivity"
-          :options="prodOptions"
+          :model-value="currentActivity"
+          @update:model-value="onActivitySelected"
+          :options="currentOptions"
           placeholder="Select or type activity…"
           taggable
           push-tags
+          @search="onActivitySearch"
+          @search:blur="confirmTypedActivity"
+          ref="selectRef"
         />
       </div>
+
+      <!-- Time In / Time Out -->
       <div class="field-row">
         <div class="field half">
           <label>Time In</label>
           <input
             type="text"
             readonly
-            :value="appState.prodTimeIn"
+            :value="currentTimeIn"
             placeholder="Tap to select"
             class="time-input"
-            @click="openPicker('prodTimeIn')"
+            @click="openPicker('timeIn')"
           />
         </div>
         <div class="field half">
@@ -107,18 +59,20 @@
           <input
             type="text"
             readonly
-            :value="appState.prodTimeOut"
+            :value="currentTimeOut"
             placeholder="Tap to select"
             class="time-input"
-            @click="openPicker('prodTimeOut')"
+            @click="openPicker('timeOut')"
           />
         </div>
       </div>
+
+      <!-- Start Depth / End Depth -->
       <div class="field-row">
         <div class="field half">
           <label>Start Depth (m)</label>
           <input
-            v-model="appState.prodStartDepth"
+            v-model="currentStartDepth"
             type="number"
             step="0.1"
             min="0"
@@ -128,7 +82,7 @@
         <div class="field half">
           <label>End Depth (m)</label>
           <input
-            v-model="appState.prodEndDepth"
+            v-model="currentEndDepth"
             type="number"
             step="0.1"
             min="0"
@@ -136,78 +90,11 @@
           />
         </div>
       </div>
-      <div class="segment-actions">
-        <button class="btn-undo" @click="undoLastSegment('Production', 'prod')">↩ Undo</button>
-        <button class="btn-add-segment" @click="submitSegment('prod')">+ Add</button>
-      </div>
-    </div>
 
-    <hr class="separator-line" />
-
-    <!-- ═══ Segment 3: Waits ═══ -->
-    <div class="segment">
-      <div class="segment-header">
-        <span>3. The Waits</span>
-      </div>
-      <div class="field">
-        <label>Activity</label>
-        <v-select
-          v-model="appState.waitActivity"
-          :options="waitOptions"
-          placeholder="Select or type activity…"
-          taggable
-          push-tags
-        />
-      </div>
-      <div class="field-row">
-        <div class="field half">
-          <label>Time In</label>
-          <input
-            type="text"
-            readonly
-            :value="appState.waitTimeIn"
-            placeholder="Tap to select"
-            class="time-input"
-            @click="openPicker('waitTimeIn')"
-          />
-        </div>
-        <div class="field half">
-          <label>Time Out</label>
-          <input
-            type="text"
-            readonly
-            :value="appState.waitTimeOut"
-            placeholder="Tap to select"
-            class="time-input"
-            @click="openPicker('waitTimeOut')"
-          />
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field half">
-          <label>Start Depth (m)</label>
-          <input
-            v-model="appState.waitStartDepth"
-            type="number"
-            step="0.1"
-            min="0"
-            placeholder="0.0"
-          />
-        </div>
-        <div class="field half">
-          <label>End Depth (m)</label>
-          <input
-            v-model="appState.waitEndDepth"
-            type="number"
-            step="0.1"
-            min="0"
-            placeholder="0.0"
-          />
-        </div>
-      </div>
+      <!-- Segment actions -->
       <div class="segment-actions">
-        <button class="btn-undo" @click="undoLastSegment('Waits', 'wait')">↩ Undo</button>
-        <button class="btn-add-segment" @click="submitSegment('wait')">+ Add</button>
+        <button class="btn-undo" @click="handleUndo">↩ Undo</button>
+        <button class="btn-add-segment" @click="handleAdd">+ Add</button>
       </div>
     </div>
 
@@ -242,7 +129,98 @@ import 'vue-select/dist/vue-select.css'
 const router = useRouter()
 const validationMsg = ref('')
 
-// ── Pre-fill TimeIn / StartDepth from last logged row on mount ──
+// ── Tab configuration ──────────────────────────────────────────
+const activeTab = ref('prep')
+
+const TABS = {
+  prep: {
+    label: '1. Preparation Work',
+    activityKey: 'prepActivity',
+    timeInKey: 'prepTimeIn',
+    timeOutKey: 'prepTimeOut',
+    startDepthKey: 'prepStartDepth',
+    endDepthKey: 'prepEndDepth',
+    category: 'Preparation',
+    optionsKey: 'prepOptions',
+  },
+  prod: {
+    label: '2. Production Work',
+    activityKey: 'prodActivity',
+    timeInKey: 'prodTimeIn',
+    timeOutKey: 'prodTimeOut',
+    startDepthKey: 'prodStartDepth',
+    endDepthKey: 'prodEndDepth',
+    category: 'Production',
+    optionsKey: 'prodOptions',
+  },
+  wait: {
+    label: '3. The Waits',
+    activityKey: 'waitActivity',
+    timeInKey: 'waitTimeIn',
+    timeOutKey: 'waitTimeOut',
+    startDepthKey: 'waitStartDepth',
+    endDepthKey: 'waitEndDepth',
+    category: 'Waits',
+    optionsKey: 'waitOptions',
+  },
+}
+
+// ── Computed bindings: read/write active tab's fields ────────
+const currentTab = computed(() => TABS[activeTab.value])
+
+const currentActivity = computed({
+  get: () => appState[currentTab.value.activityKey],
+  set: (v) => { appState[currentTab.value.activityKey] = v },
+})
+
+const currentTimeIn = computed(() => appState[currentTab.value.timeInKey])
+const currentTimeOut = computed(() => appState[currentTab.value.timeOutKey])
+
+const currentStartDepth = computed({
+  get: () => appState[currentTab.value.startDepthKey],
+  set: (v) => { appState[currentTab.value.startDepthKey] = v },
+})
+
+const currentEndDepth = computed({
+  get: () => appState[currentTab.value.endDepthKey],
+  set: (v) => { appState[currentTab.value.endDepthKey] = v },
+})
+
+// ── Dropdown options per tab ──────────────────────────────────
+const prepOptions = computed(() => dropdowns.preparationList)
+const prodOptions = computed(() => dropdowns.productionList)
+const waitOptions = computed(() => dropdowns.waitsList)
+
+const currentOptions = computed(() => {
+  switch (activeTab.value) {
+    case 'prep': return prepOptions.value
+    case 'prod': return prodOptions.value
+    case 'wait': return waitOptions.value
+    default: return []
+  }
+})
+
+// ── v-select type-to-add: confirm on blur or Enter ────────────
+const selectRef = ref(null)
+const typedActivity = ref('')
+
+function onActivitySearch(val) {
+  typedActivity.value = val
+}
+
+function confirmTypedActivity() {
+  if (typedActivity.value && !currentActivity.value) {
+    currentActivity.value = typedActivity.value
+    typedActivity.value = ''
+  }
+}
+
+function onActivitySelected(val) {
+  currentActivity.value = val
+  typedActivity.value = ''
+}
+
+// ── Pre-fill TimeIn / StartDepth from last logged row on mount ─
 onMounted(() => {
   const rows = appState.logRows
   if (rows.length === 0) return
@@ -259,43 +237,38 @@ onMounted(() => {
   }
 })
 
-// Per-segment undo snapshots (keyed by prefix: prep/prod/wait)
+// ── Per-segment undo snapshots ────────────────────────────────
 const segmentSnapshots = ref({
   prep: null,
   prod: null,
   wait: null,
 })
+
+// ── Time Picker ───────────────────────────────────────────────
 const pickerVisible = ref(false)
 const pickerTarget = ref('')
 const pickerModelValue = ref('')
 const pickerRef = ref(null)
 
-const prepOptions = computed(() => dropdowns.preparationList)
-const prodOptions = computed(() => dropdowns.productionList)
-const waitOptions = computed(() => dropdowns.waitsList)
-
-const infoSummary = computed(() => {
-  const typeRef = [appState.workType, appState.refPoint].filter(Boolean).join(' - ')
-  const parts = [appState.projectName, typeRef, appState.teamRig].filter(Boolean)
-  return parts.join(' · ') || '—'
-})
-
-const formattedDate = computed(() => {
-  if (!appState.logDate) return ''
-  const [y, m, d] = appState.logDate.split('-')
-  return `${d}-${m}-${y}`
-})
-
-// ── Time Picker ──
 function openPicker(target) {
   pickerTarget.value = target
-  pickerModelValue.value = appState[target] || ''
+  const tab = TABS[activeTab.value]
+
+  // Time Out default: if empty, pre-fill with the current tab's Time In
+  if (target === 'timeOut') {
+    const timeOutKey = tab.timeOutKey
+    if (!appState[timeOutKey] && appState[tab.timeInKey]) {
+      pickerModelValue.value = appState[tab.timeInKey]
+    } else {
+      pickerModelValue.value = appState[timeOutKey] || ''
+    }
+  } else {
+    pickerModelValue.value = appState[target] || ''
+  }
   pickerVisible.value = true
 }
 
 function onPickerConfirm(displayValue) {
-  // displayValue is "HH:MM am/pm"
-  // Store as 24-hour HH:MM for Supabase
   const match = displayValue.match(/^(\d{2}):(\d{2})\s*(am|pm)$/i)
   if (match) {
     let hh = parseInt(match[1], 10)
@@ -310,12 +283,10 @@ function onPickerConfirm(displayValue) {
   pickerVisible.value = false
 }
 
-// ── Navigation ──
+// ── Navigation ────────────────────────────────────────────────
 function handleNext() {
   validationMsg.value = ''
-  // Collect any unsaved form entries (silently, don't block on empty)
   submitFormRows()
-  // Allow navigation if rows exist (from + Add or just submitted)
   if (appState.logRows.length === 0) {
     validationMsg.value = 'Add at least one segment entry before proceeding.'
     return
@@ -323,38 +294,29 @@ function handleNext() {
   router.push('/summary')
 }
 
+// ── Add segment ───────────────────────────────────────────────
+function handleAdd() {
+  const tab = TABS[activeTab.value]
+  const prefix = activeTab.value
+
+  submitSegment(prefix)
+}
+
 function submitSegment(prefix) {
   validationMsg.value = ''
 
-  const segMap = {
-    prep: {
-      category: 'Preparation',
-      activity: appState.prepActivity,
-      timeIn: appState.prepTimeIn,
-      timeOut: appState.prepTimeOut,
-      startDepth: appState.prepStartDepth,
-      endDepth: appState.prepEndDepth,
-    },
-    prod: {
-      category: 'Production',
-      activity: appState.prodActivity,
-      timeIn: appState.prodTimeIn,
-      timeOut: appState.prodTimeOut,
-      startDepth: appState.prodStartDepth,
-      endDepth: appState.prodEndDepth,
-    },
-    wait: {
-      category: 'Waits',
-      activity: appState.waitActivity,
-      timeIn: appState.waitTimeIn,
-      timeOut: appState.waitTimeOut,
-      startDepth: appState.waitStartDepth,
-      endDepth: appState.waitEndDepth,
-    },
+  const tab = TABS[prefix]
+
+  const seg = {
+    category: tab.category,
+    activity: appState[tab.activityKey],
+    timeIn: appState[tab.timeInKey],
+    timeOut: appState[tab.timeOutKey],
+    startDepth: appState[tab.startDepthKey],
+    endDepth: appState[tab.endDepthKey],
   }
 
-  const seg = segMap[prefix]
-  if (!seg || !seg.activity || !seg.timeIn || !seg.timeOut) {
+  if (!seg.activity || !seg.timeIn || !seg.timeOut) {
     validationMsg.value = 'Please fill Activity, Time In, and Time Out before adding.'
     return
   }
@@ -374,21 +336,21 @@ function submitSegment(prefix) {
     logDate: appState.logDate || new Date().toISOString().slice(0, 10),
   }
 
-  // Take undo snapshot (the row we're about to push)
+  // Take undo snapshot
   segmentSnapshots.value[prefix] = newRow
 
   appState.logRows.push(newRow)
 
-  // Capture the submitted values before resetting
+  // Capture submitted values before reset
   const savedTimeOut = seg.timeOut
   const savedEndDepth = seg.endDepth
 
   // Reset only this segment's fields
-  appState[prefix + 'Activity'] = ''
-  appState[prefix + 'TimeIn'] = ''
-  appState[prefix + 'TimeOut'] = ''
-  appState[prefix + 'StartDepth'] = ''
-  appState[prefix + 'EndDepth'] = ''
+  appState[tab.activityKey] = ''
+  appState[tab.timeInKey] = ''
+  appState[tab.timeOutKey] = ''
+  appState[tab.startDepthKey] = ''
+  appState[tab.endDepthKey] = ''
 
   // Cascade: copy timeOut → all timeIn, endDepth → all startDepth
   if (savedTimeOut) {
@@ -405,6 +367,11 @@ function submitSegment(prefix) {
   validationMsg.value = `Added: ${newRow.activityName}`
 }
 
+// ── Undo ──────────────────────────────────────────────────────
+function handleUndo() {
+  undoLastSegment(TABS[activeTab.value].category, activeTab.value)
+}
+
 function undoLastSegment(category, prefix) {
   const snap = segmentSnapshots.value[prefix]
   if (!snap) {
@@ -412,25 +379,35 @@ function undoLastSegment(category, prefix) {
     return
   }
 
-  // Remove the last matching row from logRows (find by id, searching from the end)
   const idx = appState.logRows.map(r => r.id).lastIndexOf(snap.id)
   if (idx !== -1) {
     appState.logRows.splice(idx, 1)
   }
 
-  // Restore the snapshot data back into the form fields
-  appState[prefix + 'Activity'] = snap.activityName
+  const tab = TABS[prefix]
+  appState[tab.activityKey] = snap.activityName
+  appState[tab.timeInKey] = snap.timeIn
+  appState[tab.timeOutKey] = snap.timeOut
+  appState[tab.startDepthKey] = snap.startDepth
+  appState[tab.endDepthKey] = snap.endDepth
 
-  appState[prefix + 'TimeIn'] = snap.timeIn
-  appState[prefix + 'TimeOut'] = snap.timeOut
-  appState[prefix + 'StartDepth'] = snap.startDepth
-  appState[prefix + 'EndDepth'] = snap.endDepth
-
-  // Clear the undo snapshot
   segmentSnapshots.value[prefix] = null
 
   validationMsg.value = `Undone: ${snap.activityName}`
 }
+
+// ── Info bar helpers ──────────────────────────────────────────
+const infoSummary = computed(() => {
+  const typeRef = [appState.workType, appState.refPoint].filter(Boolean).join(' - ')
+  const parts = [appState.projectName, typeRef, appState.teamRig].filter(Boolean)
+  return parts.join(' · ') || '—'
+})
+
+const formattedDate = computed(() => {
+  if (!appState.logDate) return ''
+  const [y, m, d] = appState.logDate.split('-')
+  return `${d}-${m}-${y}`
+})
 </script>
 
 <style scoped>
@@ -476,6 +453,44 @@ h2 {
   font-weight: 600;
 }
 
+/* ── Tab bar ── */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-right: 1px solid #e2e8f0;
+}
+
+.tab-btn:last-child {
+  border-right: none;
+}
+
+.tab-btn.active {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.tab-btn:not(.active):hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+/* ── Segment ── */
 .segment {
   background: #fff;
   border-radius: 12px;
@@ -519,13 +534,6 @@ h2 {
   color: #ef4444;
   border-color: #fca5a5;
   background: #fef2f2;
-}
-
-.separator-line {
-  border: none;
-  height: 2px;
-  background: #e2e8f0;
-  margin: 14px 0;
 }
 
 .field {
