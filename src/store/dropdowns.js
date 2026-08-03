@@ -69,8 +69,20 @@ export const dropdowns = reactive({
   lastWaitSelection: persisted?.lastWaitSelection || '',
 })
 
+// ── Hidden items per list (index-based) ──
+export const hiddenItems = reactive({
+  preparationList: persisted?.hiddenPrep || {},
+  productionList: persisted?.hiddenProd || {},
+  waitsList: persisted?.hiddenWait || {},
+})
+
 watch(
-  () => JSON.parse(JSON.stringify(dropdowns)),
+  () => ({
+    ...JSON.parse(JSON.stringify(dropdowns)),
+    hiddenPrep: JSON.parse(JSON.stringify(hiddenItems.preparationList)),
+    hiddenProd: JSON.parse(JSON.stringify(hiddenItems.productionList)),
+    hiddenWait: JSON.parse(JSON.stringify(hiddenItems.waitsList)),
+  }),
   (state) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   },
@@ -85,4 +97,7 @@ export function resetDropdowns() {
   dropdowns.preparationList = [...DEFAULT_PREPARATION]
   dropdowns.productionList = [...DEFAULT_PRODUCTION]
   dropdowns.waitsList = [...DEFAULT_WAITS]
+  hiddenItems.preparationList = {}
+  hiddenItems.productionList = {}
+  hiddenItems.waitsList = {}
 }

@@ -1,363 +1,210 @@
-a<template>
+<template>
   <div class="input-setup-page">
-    <h2>📋 Time & Motion Input <span class="step-badge">1/2</span></h2>
-    <p class="desc">Enter project details before logging activities.</p>
+    <h2>📋 Time & Motion Input</h2>
+    <p class="desc">Enter project details and log activities.</p>
 
-    <form @submit.prevent="handleNext" class="setup-form">
+    <!-- ═══ Project Setup ═══ -->
+    <form @submit.prevent class="setup-form">
       <!-- Project Name -->
-      <div class="field">
-        <label for="projectName">Project Name</label>
-        <input
-          id="projectName"
-          v-model="appState.projectName"
-          type="text"
-          placeholder="Enter project name"
-          class="input-full"
-          required
-        />
-      </div>
-
-      <!-- Team / Rig -->
-      <div class="field">
-        <label for="teamRig">Team / Rig</label>
-        <v-select
-          v-model="appState.teamRig"
-          :options="dropdowns.rigList"
-          placeholder="Select or type rig…"
-          taggable
-          push-tags
-          required
-        />
-      </div>
-
-      <!-- Work Type -->
-      <div class="field">
-        <label>Work Type</label>
-        <div class="radio-group">
-          <label class="radio-label" :class="{ active: appState.workType === 'JGP' }">
-            <input type="radio" v-model="appState.workType" value="JGP" />
-            Jet Grout Pile<br /><span class="abbr">(JGP)</span>
-          </label>
-          <label class="radio-label" :class="{ active: appState.workType === 'GH' }">
-            <input type="radio" v-model="appState.workType" value="GH" />
-            Grout Hole<br /><span class="abbr">(GH)</span>
-          </label>
+      <div class="field-row setup-row">
+        <div class="field field-half">
+          <label for="projectName">Project Name</label>
+          <input
+            id="projectName"
+            v-model="appState.projectName"
+            type="text"
+            placeholder="Enter project name"
+            class="input-full"
+            required
+          />
         </div>
       </div>
 
-      <!-- Ref. Point -->
-      <div class="field">
-        <label for="refPoint">Ref. Point</label>
-        <input
-          id="refPoint"
-          v-model="appState.refPoint"
-          type="text"
-          placeholder="e.g. P1, P2…"
-          class="input-full"
-          required
-        />
+      <!-- Team / Rig + Record Date (side-by-side) -->
+      <div class="field-row setup-row">
+        <div class="field field-half">
+          <label for="teamRig">Team / Rig</label>
+          <v-select
+            v-model="appState.teamRig"
+            :options="dropdowns.rigList"
+            placeholder="Select or type rig…"
+            taggable
+            push-tags
+            required
+          />
+        </div>
+        <div class="field field-half">
+          <label for="logDate">Record Date</label>
+          <input
+            type="text"
+            readonly
+            :value="logDateDisplay"
+            placeholder="Tap to select date"
+            class="input-full date-input"
+            @click="openDatePicker"
+          />
+        </div>
       </div>
 
-      <!-- Record Date -->
-      <div class="field">
-        <label for="logDate">Record Date</label>
-        <input
-          type="text"
-          readonly
-          :value="logDateDisplay"
-          placeholder="Tap to select date"
-          class="input-full date-input"
-          @click="openDatePicker"
-        />
+      <!-- Work Type + Ref. Point (side-by-side) -->
+      <div class="field-row setup-row">
+        <div class="field field-half">
+          <label>Work Type</label>
+          <div class="radio-group">
+            <label class="radio-label" :class="{ active: appState.workType === 'JGP' }">
+              <input type="radio" v-model="appState.workType" value="JGP" />
+              Jet Grout Pile <span class="abbr">(JGP)</span>
+            </label>
+            <label class="radio-label" :class="{ active: appState.workType === 'GH' }">
+              <input type="radio" v-model="appState.workType" value="GH" />
+              Grout Hole <span class="abbr">(GH)</span>
+            </label>
+          </div>
+        </div>
+        <div class="field field-half">
+          <label for="refPoint">Ref. Point</label>
+          <input
+            id="refPoint"
+            v-model="appState.refPoint"
+            type="text"
+            placeholder="e.g. P1, P2…"
+            class="input-full"
+            required
+          />
+        </div>
       </div>
-
-      <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
-
-      <button type="submit" class="btn-primary">Next → Activities</button>
     </form>
 
-    <!-- ═══ Setup: Manage Activity Dropdowns ═══ -->
-    <div class="setup-section">
-      <h3 class="setup-title">⚙️ Setup</h3>
-      <p class="setup-desc">Edit the dropdown list and their order.</p>
+    <!-- ═══ Tab Bar ═══ -->
+    <div class="tab-bar">
+      <button
+        v-for="(tab, key) in TABS"
+        :key="key"
+        class="tab-btn"
+        :class="{ active: activeTab === key }"
+        @click="activeTab = key"
+      >
+        {{ tab.label }}
+      </button>
+    </div>
 
-      <!-- 0. Team / Rig -->
-      <div class="setup-panel">
-        <div class="setup-panel-header" @click="togglePanel('rig')">
-          <span>0. Team / Rig</span>
-          <span class="panel-arrow" :class="{ open: openPanels.rig }">▼</span>
+    <!-- ═══ Single Segment Panel ═══ -->
+    <div class="segment">
+      <div class="segment-header">
+        <span>{{ TABS[activeTab].label }}</span>
+      </div>
+
+      <!-- Activity -->
+      <div class="field">
+        <label>Activity</label>
+        <v-select
+          :model-value="currentActivity"
+          @update:model-value="onActivitySelected"
+          :options="currentOptions"
+          placeholder="Select or type activity…"
+          taggable
+          push-tags
+          @search="onActivitySearch"
+          @search:blur="confirmTypedActivity"
+          ref="selectRef"
+        />
+      </div>
+
+      <!-- Time In / Time Out -->
+      <div class="field-row">
+        <div class="field half">
+          <label>Time In</label>
+          <input
+            type="text"
+            readonly
+            :value="currentTimeIn"
+            placeholder="Tap to select"
+            class="time-input"
+            @click="openPicker('timeIn')"
+          />
         </div>
-        <div class="setup-panel-body" v-show="openPanels.rig">
-          <div class="tag-list">
-            <span
-              v-for="(item, i) in dropdowns.rigList"
-              :key="'rig-' + i"
-              class="tag"
-              :class="{
-                'tag-dragging': dragListKey === 'rigList' && dragOverIndex === i,
-                'tag-active-drag': dragListKey === 'rigList' && draggedIndex === i,
-              }"
-              draggable="true"
-              @dragstart="onDragStart($event, 'rigList', i)"
-              @dragover.prevent="onDragOver('rigList', i)"
-              @dragenter="onDragEnter('rigList', i)"
-              @dragleave="onDragLeave"
-              @drop="onDrop('rigList')"
-              @dragend="onDragEnd"
-            >
-              {{ item }}
-              <button class="tag-del" @click="removeItem('rigList', i)">×</button>
-            </span>
-          </div>
-          <div class="add-row">
-            <input
-              v-model="newItems.rig"
-              type="text"
-              placeholder="Add rig…"
-              class="add-input"
-              @keyup.enter="addItem('rigList', 'rig')"
-            />
-            <button class="btn-add" @click="addItem('rigList', 'rig')">+ Add</button>
-            <button class="btn-reset" @click="resetList('rigList')">Reset</button>
-          </div>
+        <div class="field half">
+          <label>Time Out</label>
+          <input
+            type="text"
+            readonly
+            :value="currentTimeOut"
+            placeholder="Tap to select"
+            class="time-input"
+            @click="openPicker('timeOut')"
+          />
         </div>
       </div>
 
-      <!-- 1. Preparation -->
-      <div class="setup-panel">
-        <div class="setup-panel-header" @click="togglePanel('prep')">
-          <span>1. Preparation Work Activity</span>
-          <span class="panel-arrow" :class="{ open: openPanels.prep }">▼</span>
+      <!-- Start Depth / End Depth -->
+      <div class="field-row">
+        <div class="field half">
+          <label>Start Depth (m)</label>
+          <input
+            v-model="currentStartDepth"
+            type="number"
+            step="0.1"
+            min="0"
+            placeholder="0.0"
+          />
         </div>
-        <div class="setup-panel-body" v-show="openPanels.prep">
-          <div class="tag-list">
-            <span
-              v-for="(item, i) in dropdowns.preparationList"
-              :key="'prep-' + i"
-              class="tag"
-              :class="{
-                'tag-dragging': dragListKey === 'preparationList' && dragOverIndex === i,
-                'tag-active-drag': dragListKey === 'preparationList' && draggedIndex === i,
-              }"
-              draggable="true"
-              @dragstart="onDragStart($event, 'preparationList', i)"
-              @dragover.prevent="onDragOver('preparationList', i)"
-              @dragenter="onDragEnter('preparationList', i)"
-              @dragleave="onDragLeave"
-              @drop="onDrop('preparationList')"
-              @dragend="onDragEnd"
-            >
-              {{ item }}
-              <button class="tag-del" @click="removeItem('preparationList', i)">×</button>
-            </span>
-          </div>
-          <div class="add-row">
-            <input
-              v-model="newItems.prep"
-              type="text"
-              placeholder="Add activity…"
-              class="add-input"
-              @keyup.enter="addItem('preparationList', 'prep')"
-            />
-            <button class="btn-add" @click="addItem('preparationList', 'prep')">+ Add</button>
-            <button class="btn-reset" @click="resetList('preparationList')">Reset</button>
-          </div>
+        <div class="field half">
+          <label>End Depth (m)</label>
+          <input
+            v-model="currentEndDepth"
+            type="number"
+            step="0.1"
+            min="0"
+            placeholder="0.0"
+          />
         </div>
       </div>
 
-      <!-- 2. Production -->
-      <div class="setup-panel">
-        <div class="setup-panel-header" @click="togglePanel('prod')">
-          <span>2. Production Work Activity</span>
-          <span class="panel-arrow" :class="{ open: openPanels.prod }">▼</span>
-        </div>
-        <div class="setup-panel-body" v-show="openPanels.prod">
-          <div class="tag-list">
-            <span
-              v-for="(item, i) in dropdowns.productionList"
-              :key="'prod-' + i"
-              class="tag"
-              :class="{
-                'tag-dragging': dragListKey === 'productionList' && dragOverIndex === i,
-                'tag-active-drag': dragListKey === 'productionList' && draggedIndex === i,
-              }"
-              draggable="true"
-              @dragstart="onDragStart($event, 'productionList', i)"
-              @dragover.prevent="onDragOver('productionList', i)"
-              @dragenter="onDragEnter('productionList', i)"
-              @dragleave="onDragLeave"
-              @drop="onDrop('productionList')"
-              @dragend="onDragEnd"
-            >
-              {{ item }}
-              <button class="tag-del" @click="removeItem('productionList', i)">×</button>
-            </span>
-          </div>
-          <div class="add-row">
-            <input
-              v-model="newItems.prod"
-              type="text"
-              placeholder="Add activity…"
-              class="add-input"
-              @keyup.enter="addItem('productionList', 'prod')"
-            />
-            <button class="btn-add" @click="addItem('productionList', 'prod')">+ Add</button>
-            <button class="btn-reset" @click="resetList('productionList')">Reset</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. Waits -->
-      <div class="setup-panel">
-        <div class="setup-panel-header" @click="togglePanel('wait')">
-          <span>3. The Waits Activity</span>
-          <span class="panel-arrow" :class="{ open: openPanels.wait }">▼</span>
-        </div>
-        <div class="setup-panel-body" v-show="openPanels.wait">
-          <div class="tag-list">
-            <span
-              v-for="(item, i) in dropdowns.waitsList"
-              :key="'wait-' + i"
-              class="tag"
-              :class="{
-                'tag-dragging': dragListKey === 'waitsList' && dragOverIndex === i,
-                'tag-active-drag': dragListKey === 'waitsList' && draggedIndex === i,
-              }"
-              draggable="true"
-              @dragstart="onDragStart($event, 'waitsList', i)"
-              @dragover.prevent="onDragOver('waitsList', i)"
-              @dragenter="onDragEnter('waitsList', i)"
-              @dragleave="onDragLeave"
-              @drop="onDrop('waitsList')"
-              @dragend="onDragEnd"
-            >
-              {{ item }}
-              <button class="tag-del" @click="removeItem('waitsList', i)">×</button>
-            </span>
-          </div>
-          <div class="add-row">
-            <input
-              v-model="newItems.wait"
-              type="text"
-              placeholder="Add activity…"
-              class="add-input"
-              @keyup.enter="addItem('waitsList', 'wait')"
-            />
-            <button class="btn-add" @click="addItem('waitsList', 'wait')">+ Add</button>
-            <button class="btn-reset" @click="resetList('waitsList')">Reset</button>
-          </div>
-        </div>
+      <!-- Segment actions -->
+      <div class="segment-actions">
+        <button class="btn-undo" @click="handleUndo">↩ Undo</button>
+        <button class="btn-add-segment" @click="handleAdd">+ Add</button>
       </div>
     </div>
-  </div>
 
-    <!-- Scroll Date Picker Modal -->
+    <!-- ── Action Buttons ── -->
+    <div class="action-bar">
+      <button class="btn-primary" @click="handleNext">Next → Summary</button>
+    </div>
+
+    <p v-if="validationMsg" class="validation-msg">{{ validationMsg }}</p>
+
+    <!-- ═══ Scroll Date Picker Modal ═══ -->
     <ScrollDatePicker
       :model-value="appState.logDate"
       :visible="datePickerVisible"
       @update:model-value="onDatePicked"
       @update:visible="datePickerVisible = false"
     />
+
+    <!-- ═══ Scroll Time Picker Modal ═══ -->
+    <ScrollTimePicker
+      :model-value="pickerModelValue"
+      :visible="pickerVisible"
+      @update:model-value="onPickerConfirm"
+      @update:visible="pickerVisible = false"
+      ref="pickerRef"
+    />
+  </div>
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { appState } from '../store/appState.js'
-import { dropdowns } from '../store/dropdowns.js'
+import { appState, submitFormRows } from '../store/appState.js'
+import { dropdowns, hiddenItems } from '../store/dropdowns.js'
 import ScrollDatePicker from '../components/ScrollDatePicker.vue'
+import ScrollTimePicker from '../components/ScrollTimePicker.vue'
 import vSelect from 'vue-select'
 import 'vue-select/dist/vue-select.css'
 
 const router = useRouter()
-const errorMsg = ref('')
-// ── Setup: collapsible panels for dropdown editing ──
-const openPanels = reactive({ rig: false, prep: false, prod: false, wait: false })
-const newItems = reactive({ rig: '', prep: '', prod: '', wait: '' })
-
-// ── Drag-and-drop state ──
-const draggedIndex = ref(null)
-const dragOverIndex = ref(null)
-const dragListKey = ref(null)
-
-const DEFAULT_LISTS = {
-  rigList: [
-    'Rig 1', 'Rig 2', 'Rig 3', 'Rig 4', 'Rig 5', 'Rig 6',
-  ],
-  preparationList: [
-    'Toolbox meeting', 'Platform leveling', 'Rig shifting',
-    'Peg setting', 'Casing installation',
-  ],
-  productionList: [
-    'Drilling', 'Grouting', 'Hard drilling', 'Obstruction drilling',
-  ],
-  waitsList: [
-    'Lunch', 'Main contractor confirmation', 'NCE permit',
-    'Singtel permit', 'Netlink Trust permit', 'PUB permit', 'SPPG permit',
-    'Permits to work', 'RE/RTO inspection', 'Material clearance', 'Soil clearance',
-    '3rd party clearance', 'Safety PGI', 'Safety Time Out',
-    'Rig repair / maintenance', 'Tool damaged', 'Dinner',
-  ],
-}
-
-function togglePanel(key) {
-  openPanels[key] = !openPanels[key]
-}
-
-function addItem(listKey, newKey) {
-  const val = newItems[newKey].trim()
-  if (!val) return
-  dropdowns[listKey].push(val)
-  newItems[newKey] = ''
-}
-
-function removeItem(listKey, index) {
-  dropdowns[listKey].splice(index, 1)
-}
-
-function resetList(listKey) {
-  dropdowns[listKey] = [...DEFAULT_LISTS[listKey]]
-}
-
-// ── Drag-and-drop handlers ──
-function onDragStart(e, listKey, index) {
-  draggedIndex.value = index
-  dragListKey.value = listKey
-  e.dataTransfer.effectAllowed = 'move'
-  e.dataTransfer.setData('text/plain', index)
-}
-
-function onDragOver(listKey, index) {
-  if (dragListKey.value !== listKey) return
-  dragOverIndex.value = index
-}
-
-function onDragEnter(listKey, index) {
-  if (dragListKey.value !== listKey) return
-  dragOverIndex.value = index
-}
-
-function onDragLeave() {
-  dragOverIndex.value = null
-}
-
-function onDrop(listKey) {
-  if (dragListKey.value !== listKey) return
-  const from = draggedIndex.value
-  const to = dragOverIndex.value
-  if (from !== null && to !== null && from !== to) {
-    // Splice out the dragged item and insert at target position
-    const [item] = dropdowns[listKey].splice(from, 1)
-    dropdowns[listKey].splice(to, 0, item)
-  }
-  onDragEnd()
-}
-
-function onDragEnd() {
-  draggedIndex.value = null
-  dragOverIndex.value = null
-  dragListKey.value = null
-}
+const validationMsg = ref('')
 
 // ── Scroll Date Picker ──
 const datePickerVisible = ref(false)
@@ -378,31 +225,313 @@ function onDatePicked(val) {
   datePickerVisible.value = false
 }
 
+// ── Tab configuration ──────────────────────────────────────────
+const activeTab = ref('prep')
+
+const TABS = {
+  prep: {
+    label: '1. Preparation Work',
+    activityKey: 'prepActivity',
+    timeInKey: 'prepTimeIn',
+    timeOutKey: 'prepTimeOut',
+    startDepthKey: 'prepStartDepth',
+    endDepthKey: 'prepEndDepth',
+    category: 'Preparation',
+    optionsKey: 'prepOptions',
+  },
+  prod: {
+    label: '2. Production Work',
+    activityKey: 'prodActivity',
+    timeInKey: 'prodTimeIn',
+    timeOutKey: 'prodTimeOut',
+    startDepthKey: 'prodStartDepth',
+    endDepthKey: 'prodEndDepth',
+    category: 'Production',
+    optionsKey: 'prodOptions',
+  },
+  wait: {
+    label: '3. The Waits',
+    activityKey: 'waitActivity',
+    timeInKey: 'waitTimeIn',
+    timeOutKey: 'waitTimeOut',
+    startDepthKey: 'waitStartDepth',
+    endDepthKey: 'waitEndDepth',
+    category: 'Waits',
+    optionsKey: 'waitOptions',
+  },
+}
+
+// ── Computed bindings: read/write active tab's fields ────────
+const currentTab = computed(() => TABS[activeTab.value])
+
+const currentActivity = computed({
+  get: () => appState[currentTab.value.activityKey],
+  set: (v) => { appState[currentTab.value.activityKey] = v },
+})
+
+const currentTimeIn = computed(() => appState[currentTab.value.timeInKey])
+const currentTimeOut = computed(() => appState[currentTab.value.timeOutKey])
+
+const currentStartDepth = computed({
+  get: () => appState[currentTab.value.startDepthKey],
+  set: (v) => { appState[currentTab.value.startDepthKey] = v },
+})
+
+const currentEndDepth = computed({
+  get: () => appState[currentTab.value.endDepthKey],
+  set: (v) => { appState[currentTab.value.endDepthKey] = v },
+})
+
+// ── Dropdown options per tab ──────────────────────────────────
+const prepOptions = computed(() =>
+  dropdowns.preparationList.filter((_, i) => !hiddenItems.preparationList[i])
+)
+const prodOptions = computed(() =>
+  dropdowns.productionList.filter((_, i) => !hiddenItems.productionList[i])
+)
+const waitOptions = computed(() =>
+  dropdowns.waitsList.filter((_, i) => !hiddenItems.waitsList[i])
+)
+
+const currentOptions = computed(() => {
+  switch (activeTab.value) {
+    case 'prep': return prepOptions.value
+    case 'prod': return prodOptions.value
+    case 'wait': return waitOptions.value
+    default: return []
+  }
+})
+
+// ── v-select type-to-add: confirm on blur or Enter ────────────
+const selectRef = ref(null)
+const typedActivity = ref('')
+
+function onActivitySearch(val) {
+  typedActivity.value = val
+}
+
+function confirmTypedActivity() {
+  if (typedActivity.value && !currentActivity.value) {
+    currentActivity.value = typedActivity.value
+    typedActivity.value = ''
+  }
+}
+
+function onActivitySelected(val) {
+  currentActivity.value = val
+  typedActivity.value = ''
+}
+
+// ── Pre-fill TimeIn / StartDepth from last logged row on mount ─
+onMounted(() => {
+  const rows = appState.logRows
+  if (rows.length === 0) return
+  const last = rows[rows.length - 1]
+  if (last.timeOut && !appState.prepTimeIn && !appState.prodTimeIn && !appState.waitTimeIn) {
+    appState.prepTimeIn = last.timeOut
+    appState.prodTimeIn = last.timeOut
+    appState.waitTimeIn = last.timeOut
+  }
+  if (last.endDepth && !appState.prepStartDepth && !appState.prodStartDepth && !appState.waitStartDepth) {
+    appState.prepStartDepth = last.endDepth
+    appState.prodStartDepth = last.endDepth
+    appState.waitStartDepth = last.endDepth
+  }
+})
+
+// ── Per-segment undo snapshots ────────────────────────────────
+const segmentSnapshots = ref({
+  prep: null,
+  prod: null,
+  wait: null,
+})
+
+// ── Time Picker ───────────────────────────────────────────────
+const pickerVisible = ref(false)
+const pickerTarget = ref('')
+const pickerModelValue = ref('')
+const pickerRef = ref(null)
+
+function openPicker(target) {
+  pickerTarget.value = target
+  const tab = TABS[activeTab.value]
+
+  // Time Out default: if empty, pre-fill with the current tab's Time In
+  if (target === 'timeOut') {
+    const timeOutKey = tab.timeOutKey
+    if (!appState[timeOutKey] && appState[tab.timeInKey]) {
+      pickerModelValue.value = appState[tab.timeInKey]
+    } else {
+      pickerModelValue.value = appState[timeOutKey] || ''
+    }
+  } else {
+    pickerModelValue.value = appState[target] || ''
+  }
+  pickerVisible.value = true
+}
+
+function onPickerConfirm(displayValue) {
+  const match = displayValue.match(/^(\d{2}):(\d{2})\s*(am|pm)$/i)
+  if (match) {
+    let hh = parseInt(match[1], 10)
+    const mm = match[2]
+    const ampm = match[3].toLowerCase()
+    if (ampm === 'pm' && hh < 12) hh += 12
+    if (ampm === 'am' && hh === 12) hh = 0
+    appState[pickerTarget.value] = `${String(hh).padStart(2, '0')}:${mm}`
+  } else {
+    appState[pickerTarget.value] = displayValue
+  }
+  pickerVisible.value = false
+}
+
+// ── Navigation ────────────────────────────────────────────────
 function handleNext() {
-  errorMsg.value = ''
+  validationMsg.value = ''
+
   if (!appState.projectName.trim()) {
-    errorMsg.value = 'Project Name is required.'
+    validationMsg.value = 'Project Name is required.'
     return
   }
   if (!appState.teamRig.trim()) {
-    errorMsg.value = 'Team / Rig is required.'
+    validationMsg.value = 'Team / Rig is required.'
     return
   }
   if (!appState.refPoint.trim()) {
-    errorMsg.value = 'Ref. Point is required.'
+    validationMsg.value = 'Ref. Point is required.'
     return
   }
   if (!appState.logDate) {
-    errorMsg.value = 'Record Date is required.'
+    validationMsg.value = 'Record Date is required.'
     return
   }
-  router.push('/input')
+
+  submitFormRows()
+  if (appState.logRows.length === 0) {
+    validationMsg.value = 'Add at least one segment entry before proceeding.'
+    return
+  }
+  router.push('/summary')
 }
+
+// ── Add segment ───────────────────────────────────────────────
+function handleAdd() {
+  const tab = TABS[activeTab.value]
+  const prefix = activeTab.value
+  submitSegment(prefix)
+}
+
+function submitSegment(prefix) {
+  validationMsg.value = ''
+
+  const tab = TABS[prefix]
+
+  const seg = {
+    category: tab.category,
+    activity: appState[tab.activityKey],
+    timeIn: appState[tab.timeInKey],
+    timeOut: appState[tab.timeOutKey],
+    startDepth: appState[tab.startDepthKey],
+    endDepth: appState[tab.endDepthKey],
+  }
+
+  if (!seg.activity || !seg.timeIn || !seg.timeOut) {
+    validationMsg.value = 'Please fill Activity, Time In, and Time Out before adding.'
+    return
+  }
+
+  const newRow = {
+    id: crypto.randomUUID(),
+    category: seg.category,
+    activityName: seg.activity,
+    timeIn: seg.timeIn,
+    timeOut: seg.timeOut,
+    projectName: appState.projectName,
+    teamRig: appState.teamRig,
+    workType: appState.workType,
+    refPoint: appState.refPoint,
+    startDepth: seg.startDepth,
+    endDepth: seg.endDepth,
+    logDate: appState.logDate || new Date().toISOString().slice(0, 10),
+  }
+
+  // Take undo snapshot
+  segmentSnapshots.value[prefix] = newRow
+
+  appState.logRows.push(newRow)
+
+  // Capture submitted values before reset
+  const savedTimeOut = seg.timeOut
+  const savedEndDepth = seg.endDepth
+
+  // Reset only this segment's fields
+  appState[tab.activityKey] = ''
+  appState[tab.timeInKey] = ''
+  appState[tab.timeOutKey] = ''
+  appState[tab.startDepthKey] = ''
+  appState[tab.endDepthKey] = ''
+
+  // Cascade: copy timeOut → all timeIn, endDepth → all startDepth
+  if (savedTimeOut) {
+    appState.prepTimeIn = savedTimeOut
+    appState.prodTimeIn = savedTimeOut
+    appState.waitTimeIn = savedTimeOut
+  }
+  if (savedEndDepth) {
+    appState.prepStartDepth = savedEndDepth
+    appState.prodStartDepth = savedEndDepth
+    appState.waitStartDepth = savedEndDepth
+  }
+
+  validationMsg.value = `Added: ${newRow.activityName}`
+}
+
+// ── Undo ──────────────────────────────────────────────────────
+function handleUndo() {
+  undoLastSegment(TABS[activeTab.value].category, activeTab.value)
+}
+
+function undoLastSegment(category, prefix) {
+  const snap = segmentSnapshots.value[prefix]
+  if (!snap) {
+    validationMsg.value = 'Nothing to undo for this segment.'
+    return
+  }
+
+  const idx = appState.logRows.map(r => r.id).lastIndexOf(snap.id)
+  if (idx !== -1) {
+    appState.logRows.splice(idx, 1)
+  }
+
+  const tab = TABS[prefix]
+  appState[tab.activityKey] = snap.activityName
+  appState[tab.timeInKey] = snap.timeIn
+  appState[tab.timeOutKey] = snap.timeOut
+  appState[tab.startDepthKey] = snap.startDepth
+  appState[tab.endDepthKey] = snap.endDepth
+
+  segmentSnapshots.value[prefix] = null
+
+  validationMsg.value = `Undone: ${snap.activityName}`
+}
+
+// ── Info bar helpers ──────────────────────────────────────────
+const infoSummary = computed(() => {
+  const typeRef = [appState.workType, appState.refPoint].filter(Boolean).join(' - ')
+  const parts = [appState.projectName, typeRef, appState.teamRig].filter(Boolean)
+  return parts.join(' · ') || '—'
+})
+
+const formattedDate = computed(() => {
+  if (!appState.logDate) return ''
+  const [y, m, d] = appState.logDate.split('-')
+  return `${d}-${m}-${y}`
+})
 </script>
 
 <style scoped>
 .input-setup-page {
-  max-width: 500px;
+  max-width: 600px;
   margin: 0 auto;
   padding-bottom: 40px;
 }
@@ -412,15 +541,6 @@ h2 {
   margin-bottom: 4px;
 }
 
-.step-badge {
-  font-size: 12px;
-  color: #3b82f6;
-  background: #eff6ff;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 600;
-}
-
 .desc {
   color: #64748b;
   font-size: 13px;
@@ -428,24 +548,43 @@ h2 {
   padding: 0 16px;
 }
 
+/* ── Setup form (project details) ── */
 .setup-form {
   background: #fff;
   border-radius: 14px;
   padding: 24px;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+  margin-bottom: 12px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .field label {
   font-size: 13px;
   font-weight: 600;
-  margin-bottom: 6px;
-  color: #334155;
+  margin-bottom: 4px;
+  color: #475569;
+}
+
+.field input,
+.field select {
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+  -webkit-appearance: none;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
 .input-full {
@@ -463,50 +602,220 @@ h2 {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
-.radio-group {
+.field-row {
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.setup-row {
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.field-half {
+  flex: 1;
+  min-width: 0;
+}
+
+.field.half {
+  flex: 1;
+  min-width: 0;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .radio-label {
-  flex: 1;
-  max-width: calc(50% - 5px);
-  padding: 14px 10px;
-  text-align: center;
-  border: 2px solid #cbd5e1;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
-  background: #fff;
+  color: #334155;
+  transition: color 0.15s;
 }
 
-.radio-label input {
-  display: none;
+.radio-label input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.radio-label input[type="radio"]::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #3b82f6;
+  transition: transform 0.15s ease;
 }
 
 .radio-label.active {
-  border-color: #3b82f6;
-  background: #eff6ff;
   color: #2563eb;
 }
 
+.radio-label.active input[type="radio"] {
+  border-color: #3b82f6;
+}
+
+.radio-label.active input[type="radio"]::after {
+  transform: translate(-50%, -50%) scale(1);
+}
+
 .radio-label .abbr {
-  display: block;
   font-size: 11px;
   font-weight: 500;
   color: #64748b;
-  margin-top: 2px;
 }
 
 .radio-label.active .abbr {
   color: #3b82f6;
 }
 
+.date-input {
+  cursor: pointer;
+  caret-color: transparent;
+  color: #3b82f6 !important;
+  font-weight: 600;
+  text-align: center;
+  font-size: 14px !important;
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.date-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+  font-size: 14px;
+}
+
+/* ── Tab bar ── */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-right: 1px solid #e2e8f0;
+}
+
+.tab-btn:last-child {
+  border-right: none;
+}
+
+.tab-btn.active {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.tab-btn:not(.active):hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+/* ── Segment ── */
+.segment {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 4px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+}
+
+.segment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #1e293b;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #3b82f6;
+}
+
+.segment-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.btn-undo {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-undo:hover {
+  color: #ef4444;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.time-input {
+  cursor: pointer;
+  caret-color: transparent;
+  color: #3b82f6 !important;
+  font-weight: 600;
+  text-align: center;
+  font-size: 14px !important;
+}
+
+.time-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+  font-size: 16px;
+}
+
+/* ── Action bar ── */
+.action-bar {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
 .btn-primary {
-  width: 100%;
+  flex: 1;
   padding: 14px;
   background: #3b82f6;
   color: #fff;
@@ -515,11 +824,29 @@ h2 {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .btn-primary:hover {
   background: #2563eb;
+}
+
+.btn-add-segment {
+  background: #f1f5f9;
+  color: #3b82f6;
+  border: 1px dashed #3b82f6;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-add-segment:hover {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
 }
 
 .error {
@@ -529,200 +856,11 @@ h2 {
   text-align: center;
 }
 
-.date-input {
-  cursor: pointer;
-  caret-color: transparent;
-  color: #3b82f6 !important;
-  font-weight: 600;
+.validation-msg {
+  color: #dc2626;
+  font-size: 13px;
   text-align: center;
-  font-size: 18px !important;
-}
-
-.date-input::placeholder {
-  color: #94a3b8;
-  font-weight: 400;
-  font-size: 16px;
-}
-
-/* ── Setup Section ── */
-.setup-section {
   margin-top: 12px;
-  background: #fff;
-  border-radius: 14px;
-  padding: 16px 24px;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
-}
-
-.setup-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 12px;
-  text-align: center;
-}
-
-.setup-desc {
-  color: #64748b;
-  font-size: 12px;
-  margin: 0 0 12px 0;
-  text-align: center;
-}
-
-.setup-panel {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  margin-bottom: 10px;
-  overflow: hidden;
-}
-
-.setup-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 14px;
-  background: #f8fafc;
-  font-size: 14px;
-  font-weight: 600;
-  color: #334155;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.12s;
-}
-
-.setup-panel-header:hover {
-  background: #f1f5f9;
-}
-
-.panel-arrow {
-  font-size: 10px;
-  color: #94a3b8;
-  transition: transform 0.2s;
-}
-
-.panel-arrow.open {
-  transform: rotate(180deg);
-  color: #3b82f6;
-}
-
-.setup-panel-body {
-  padding: 12px 14px;
-  background: #fff;
-}
-
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-  justify-content: center;
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  background: #eff6ff;
-  color: #2563eb;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: grab;
-  user-select: none;
-  transition: opacity 0.15s, transform 0.15s;
-}
-
-.tag:active {
-  cursor: grabbing;
-}
-
-.tag-dragging {
-  opacity: 0.4;
-  transform: scale(0.95);
-}
-
-.tag-active-drag {
-  opacity: 0.4;
-}
-
-.tag-del {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: none;
-  background: transparent;
-  color: #94a3b8;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  border-radius: 50%;
-  transition: all 0.12s;
-  line-height: 1;
-  padding: 0;
-}
-
-.tag-del:hover {
-  background: #fee2e2;
-  color: #ef4444;
-}
-
-.add-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  justify-content: center;
-}
-
-.add-input {
-  flex: 1;
-  padding: 8px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.add-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
-}
-
-.btn-add {
-  padding: 8px 14px;
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.12s;
-}
-
-.btn-add:hover {
-  background: #2563eb;
-}
-
-.btn-reset {
-  padding: 8px 12px;
-  background: #fef2f2;
-  color: #ef4444;
-  border: 1px solid #fecaca;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.12s;
-}
-
-.btn-reset:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
 }
 
 /* ── vue-select overrides ── */
@@ -810,5 +948,4 @@ h2 {
   color: #94a3b8;
   font-size: 14px;
 }
-
 </style>

@@ -22,9 +22,7 @@ const routes = [
   },
   {
     path: '/input',
-    name: 'Input',
-    component: () => import('../views/InputView.vue'),
-    meta: { requiresAuth: true },
+    redirect: '/input-setup',
   },
   {
     path: '/summary',
