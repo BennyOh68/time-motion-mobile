@@ -312,13 +312,14 @@ function onSelectOpen() {
   nextTick(() => {
     // Set search input to readonly so mobile keyboard doesn't pop up on first tap.
     // Using readonly instead of blur() — blur() closes the dropdown on some browsers.
-    // The user can re-tap the search box to type (readonly is removed on focus).
+    // Double-tap (dblclick) removes readonly and focuses for typing.
     const root = selectRef.value?.$el?.parentElement?.querySelector('.vs__search')
     const searchInput = root || document.querySelector('.vs--open .vs__search')
     if (searchInput instanceof HTMLInputElement) {
       searchInput.setAttribute('readonly', 'readonly')
-      searchInput.addEventListener('focus', () => {
+      searchInput.addEventListener('dblclick', () => {
         searchInput.removeAttribute('readonly')
+        searchInput.focus()
       }, { once: true })
     }
   })
