@@ -228,11 +228,11 @@ function buildChartDataForExport(filteredRows) {
       if (tIn !== null && tOut !== null) {
         data.push({ x: tIn, y: !isNaN(sDepth) ? sDepth : 0 })
         data.push({ x: tOut, y: !isNaN(eDepth) ? eDepth : 0 })
-        data.push(null) // segment break
+        data.push({ x: NaN, y: NaN }) // segment break
       }
     }
 
-    while (data.length > 0 && data[data.length - 1] === null) {
+    while (data.length > 0 && isNaN(data[data.length - 1]?.x)) {
       data.pop()
     }
 
