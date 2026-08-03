@@ -161,8 +161,8 @@ export function submitFormRows() {
         teamRig: appState.teamRig,
         workType: appState.workType,
         refPoint: appState.refPoint,
-        startDepth: seg.startDepth,
-        endDepth: seg.endDepth,
+        startDepth: seg.startDepth || '0',
+        endDepth: seg.endDepth || '0',
         logDate: appState.logDate || new Date().toISOString().slice(0, 10),
       })
     }

@@ -195,7 +195,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { appState, submitFormRows } from '../store/appState.js'
 import { dropdowns, hiddenItems } from '../store/dropdowns.js'
@@ -341,7 +341,7 @@ function onActivitySelected(val) {
   typedActivity.value = ''
 }
 
-// ── Pre-fill TimeIn / StartDepth from last logged row on mount ─
+// ── Pre-fill TimeIn from last logged row on mount ─
 onMounted(() => {
   const rows = appState.logRows
   if (rows.length === 0) return
@@ -351,12 +351,23 @@ onMounted(() => {
     appState.prodTimeIn = last.timeOut
     appState.waitTimeIn = last.timeOut
   }
-  if (last.endDepth && !appState.prepStartDepth && !appState.prodStartDepth && !appState.waitStartDepth) {
-    appState.prepStartDepth = last.endDepth
-    appState.prodStartDepth = last.endDepth
-    appState.waitStartDepth = last.endDepth
-  }
 })
+
+// ── Reactively set Start Depth = last row's End Depth from summary table ─
+watch(
+  () => appState.logRows.length,
+  () => {
+    const rows = appState.logRows
+    if (rows.length === 0) return
+    const last = rows[rows.length - 1]
+    if (last.endDepth != null && last.endDepth !== '') {
+      appState.prepStartDepth = last.endDepth
+      appState.prodStartDepth = last.endDepth
+      appState.waitStartDepth = last.endDepth
+    }
+  },
+  { immediate: true }
+)
 
 // ── Per-segment undo snapshots ────────────────────────────────
 const segmentSnapshots = ref({
@@ -469,8 +480,8 @@ function submitSegment(prefix) {
     teamRig: appState.teamRig,
     workType: appState.workType,
     refPoint: appState.refPoint,
-    startDepth: seg.startDepth,
-    endDepth: seg.endDepth,
+    startDepth: seg.startDepth || '0',
+    endDepth: seg.endDepth || '0',
     logDate: appState.logDate || new Date().toISOString().slice(0, 10),
   }
 
@@ -481,7 +492,6 @@ function submitSegment(prefix) {
 
   // Capture submitted values before reset
   const savedTimeOut = seg.timeOut
-  const savedEndDepth = seg.endDepth
 
   // Reset only this segment's fields
   appState[tab.activityKey] = ''
@@ -490,16 +500,12 @@ function submitSegment(prefix) {
   appState[tab.startDepthKey] = ''
   appState[tab.endDepthKey] = ''
 
-  // Cascade: copy timeOut → all timeIn, endDepth → all startDepth
+  // Cascade: copy timeOut → all timeIn
+  // (Start Depth is handled reactively by the watcher — always last row's End Depth)
   if (savedTimeOut) {
     appState.prepTimeIn = savedTimeOut
     appState.prodTimeIn = savedTimeOut
     appState.waitTimeIn = savedTimeOut
-  }
-  if (savedEndDepth) {
-    appState.prepStartDepth = savedEndDepth
-    appState.prodStartDepth = savedEndDepth
-    appState.waitStartDepth = savedEndDepth
   }
 
   validationMsg.value = `Added: ${newRow.activityName}`

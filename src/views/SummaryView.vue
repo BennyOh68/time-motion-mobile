@@ -429,11 +429,11 @@ function formatTime(hhmm) {
   return `${h12}:${String(m).padStart(2, '0')}${ampm}`
 }
 
-// ── Depth formatting (always show 1 decimal place) ──
+// ── Depth formatting (always show 1 decimal place; blank → 0.0) ──
 function formatDepth(val) {
-  if (val === undefined || val === null || val === '') return ''
+  if (val === undefined || val === null || val === '') return '0.0m'
   const num = parseFloat(String(val))
-  if (isNaN(num)) return ''
+  if (isNaN(num)) return '0.0m'
   return num.toFixed(1) + 'm'
 }
 
