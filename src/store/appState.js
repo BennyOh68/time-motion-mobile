@@ -59,20 +59,20 @@ export const appState = reactive({
   prepActivity: persisted?.prepActivity || '',
   prepTimeIn: persisted?.prepTimeIn || '',
   prepTimeOut: persisted?.prepTimeOut || '',
-  prepStartDepth: persisted?.prepStartDepth || '',
-  prepEndDepth: persisted?.prepEndDepth || '',
+  prepStartDepth: persisted?.prepStartDepth ?? '0.0',
+  prepEndDepth: persisted?.prepEndDepth ?? '0.0',
 
   prodActivity: persisted?.prodActivity || '',
   prodTimeIn: persisted?.prodTimeIn || '',
   prodTimeOut: persisted?.prodTimeOut || '',
-  prodStartDepth: persisted?.prodStartDepth || '',
-  prodEndDepth: persisted?.prodEndDepth || '',
+  prodStartDepth: persisted?.prodStartDepth ?? '0.0',
+  prodEndDepth: persisted?.prodEndDepth ?? '0.0',
 
   waitActivity: persisted?.waitActivity || '',
   waitTimeIn: persisted?.waitTimeIn || '',
   waitTimeOut: persisted?.waitTimeOut || '',
-  waitStartDepth: persisted?.waitStartDepth || '',
-  waitEndDepth: persisted?.waitEndDepth || '',
+  waitStartDepth: persisted?.waitStartDepth ?? '0.0',
+  waitEndDepth: persisted?.waitEndDepth ?? '0.0',
 
   // ── Accumulated log rows (for Summary page) ──
   logRows: persisted?.logRows || [],
@@ -101,18 +101,18 @@ export function resetForm() {
   appState.prepActivity = ''
   appState.prepTimeIn = ''
   appState.prepTimeOut = ''
-  appState.prepStartDepth = ''
-  appState.prepEndDepth = ''
+  appState.prepStartDepth = '0.0'
+  appState.prepEndDepth = '0.0'
   appState.prodActivity = ''
   appState.prodTimeIn = ''
   appState.prodTimeOut = ''
-  appState.prodStartDepth = ''
-  appState.prodEndDepth = ''
+  appState.prodStartDepth = '0.0'
+  appState.prodEndDepth = '0.0'
   appState.waitActivity = ''
   appState.waitTimeIn = ''
   appState.waitTimeOut = ''
-  appState.waitStartDepth = ''
-  appState.waitEndDepth = ''
+  appState.waitStartDepth = '0.0'
+  appState.waitEndDepth = '0.0'
 }
 
 /**
