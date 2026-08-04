@@ -37,67 +37,73 @@
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="(row, i) in sortedRows"
-              :key="row.id"
-              :class="{ 'row-selected': selectedIds.has(row.id) }"
-            >
-              <td class="td-sn">{{ pad(i + 1) }}</td>
-              <td>
-                <input
-                  v-model="row.activityName"
-                  type="text"
-                  class="cell-input"
-                />
-              </td>
-              <td>
-                <input
-                  type="text"
-                  readonly
-                  :value="formatTime(row.timeIn)"
-                  :class="['cell-input', 'time-cell', 'pickable-cell', { 'cell-mismatch': i > 0 && row.timeIn && sortedRows[i-1].timeOut && row.timeIn !== sortedRows[i-1].timeOut }]"
-                  placeholder="H:MMam"
-                  @click="openTimePicker(row, 'timeIn')"
-                />
-              </td>
-              <td>
-                <input
-                  type="text"
-                  readonly
-                  :value="formatTime(row.timeOut)"
-                  class="cell-input time-cell pickable-cell"
-                  placeholder="H:MMpm"
-                  @click="openTimePicker(row, 'timeOut')"
-                />
-              </td>
-              <td>
-                <input
-                  type="text"
-                  readonly
-                  :value="formatDepth(row.startDepth)"
-                  :class="['cell-input', 'depth-cell', 'pickable-cell', { 'cell-mismatch': i > 0 && row.startDepth !== '' && row.startDepth != null && sortedRows[i-1].endDepth !== '' && sortedRows[i-1].endDepth != null && Number(row.startDepth) !== Number(sortedRows[i-1].endDepth) }]"
-                  placeholder="—"
-                  @click="openDepthPicker(row, 'startDepth')"
-                />
-              </td>
-              <td>
-                <input
-                  type="text"
-                  readonly
-                  :value="formatDepth(row.endDepth)"
-                  class="cell-input depth-cell pickable-cell"
-                  placeholder="—"
-                  @click="openDepthPicker(row, 'endDepth')"
-                />
-              </td>
-              <td class="td-chk">
-                <input
-                  type="checkbox"
-                  :checked="selectedIds.has(row.id)"
-                  @change="toggleRow(row.id)"
-                />
-              </td>
-            </tr>
+            <template v-for="item in groupedRows" :key="item.key">
+              <tr v-if="item.type === 'header'" class="group-header-row">
+                <td :colspan="7" class="group-header-cell">
+                  📍 {{ item.refPoint }}
+                </td>
+              </tr>
+              <tr
+                v-else
+                :class="{ 'row-selected': selectedIds.has(item.data.id) }"
+              >
+                <td class="td-sn">{{ pad(item.sn) }}</td>
+                <td>
+                  <input
+                    v-model="item.data.activityName"
+                    type="text"
+                    class="cell-input"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    readonly
+                    :value="formatTime(item.data.timeIn)"
+                    :class="['cell-input', 'time-cell', 'pickable-cell', { 'cell-mismatch': item.prevRow && item.data.timeIn && item.prevRow.timeOut && item.data.timeIn !== item.prevRow.timeOut }]"
+                    placeholder="H:MMam"
+                    @click="openTimePicker(item.data, 'timeIn')"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    readonly
+                    :value="formatTime(item.data.timeOut)"
+                    class="cell-input time-cell pickable-cell"
+                    placeholder="H:MMpm"
+                    @click="openTimePicker(item.data, 'timeOut')"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    readonly
+                    :value="formatDepth(item.data.startDepth)"
+                    :class="['cell-input', 'depth-cell', 'pickable-cell', { 'cell-mismatch': item.prevRow && item.data.startDepth !== '' && item.data.startDepth != null && item.prevRow.endDepth !== '' && item.prevRow.endDepth != null && Number(item.data.startDepth) !== Number(item.prevRow.endDepth) }]"
+                    placeholder="—"
+                    @click="openDepthPicker(item.data, 'startDepth')"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    readonly
+                    :value="formatDepth(item.data.endDepth)"
+                    class="cell-input depth-cell pickable-cell"
+                    placeholder="—"
+                    @click="openDepthPicker(item.data, 'endDepth')"
+                  />
+                </td>
+                <td class="td-chk">
+                  <input
+                    type="checkbox"
+                    :checked="selectedIds.has(item.data.id)"
+                    @change="toggleRow(item.data.id)"
+                  />
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
     </div>
@@ -199,6 +205,28 @@ const sortedRows = computed(() => {
     const tb = b.timeIn || '99:99'
     return ta.localeCompare(tb)
   })
+})
+
+// ── Grouped rows with ref. point headers ──
+const groupedRows = computed(() => {
+  const rows = sortedRows.value
+  const items = []
+  let lastRefPoint = null
+  let sn = 0
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    // Insert group header when ref. point changes
+    if (row.refPoint && row.refPoint !== lastRefPoint) {
+      items.push({ type: 'header', refPoint: row.refPoint, key: 'hdr-' + row.refPoint })
+      lastRefPoint = row.refPoint
+      sn = 0
+    }
+    sn++
+    const prevRow = i > 0 ? rows[i - 1] : null
+    items.push({ type: 'data', data: row, key: row.id, sn, prevRow })
+  }
+  return items
 })
 
 // ── Table wrapper ref ──
@@ -566,6 +594,20 @@ td {
 
 .row-selected {
   background: #eff6ff;
+}
+
+/* ── Group header row (ref. point separator) ── */
+.group-header-row td {
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border-bottom: 2px solid #bae6fd;
+}
+
+.group-header-cell {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0369a1;
+  text-align: left;
 }
 
 .col-sn {
