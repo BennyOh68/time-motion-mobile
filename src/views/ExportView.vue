@@ -285,7 +285,7 @@ async function exportPNG() {
     const CHART_H     = 900
     const HEADER_H    = 100   // space for title + subtitle
     const COMPOSITE_W = 1600
-    const COMPOSITE_H = CHART_H + HEADER_H * 2   // header + matching bottom margin
+    const COMPOSITE_H = CHART_H + HEADER_H + 50   // header + 50px bottom margin
 
     // ── 5. Build chart data & annotations ─────────────────────────
     const chartData   = buildChartDataForExport(filteredRows)
