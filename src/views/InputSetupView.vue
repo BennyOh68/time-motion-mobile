@@ -497,8 +497,8 @@ function submitSegment(prefix) {
   appState[tab.activityKey] = ''
   appState[tab.timeInKey] = ''
   appState[tab.timeOutKey] = ''
-  appState[tab.startDepthKey] = ''
-  appState[tab.endDepthKey] = ''
+  appState[tab.startDepthKey] = '0.0'
+  appState[tab.endDepthKey] = '0.0'
 
   // Cascade: copy timeOut → all timeIn
   // (Start Depth is handled reactively by the watcher — always last row's End Depth)
