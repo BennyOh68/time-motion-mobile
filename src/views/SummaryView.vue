@@ -40,7 +40,7 @@
             <template v-for="item in groupedRows" :key="item.key">
               <tr v-if="item.type === 'header'" class="group-header-row">
                 <td :colspan="7" class="group-header-cell">
-                  📍 {{ item.refPoint }}
+                  📍 {{ item.workType }} — {{ item.refPoint }}
                 </td>
               </tr>
               <tr
@@ -218,7 +218,8 @@ const groupedRows = computed(() => {
     const row = rows[i]
     // Insert group header when ref. point changes
     if (row.refPoint && row.refPoint !== lastRefPoint) {
-      items.push({ type: 'header', refPoint: row.refPoint, key: 'hdr-' + row.refPoint })
+      const prefix = row.workType || ''
+      items.push({ type: 'header', refPoint: row.refPoint, workType: prefix, key: 'hdr-' + row.refPoint + '-' + prefix })
       lastRefPoint = row.refPoint
       sn = 0
     }
