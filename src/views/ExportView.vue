@@ -220,20 +220,176 @@ async function syncToSheets() {
 }
 
 // ── PNG Export ──
+//
+// Renders the Time & Motion chart off-screen at a fixed 1600×900
+// landscape canvas so the full chart is captured without scrolling
+// or portrait clipping on mobile devices.
 async function exportPNG() {
   pngLoading.value = true
+  let chartInstance = null
+  let containerEl = null
+
   try {
-    if (!appState.chartSnapshot) {
-      alert('Please go to the Chart page first to generate a chart before exporting.')
+    // ── 1. Dynamic header values ──────────────────────────────────
+    const rigValue = appState.teamRig || 'Unknown Rig'
+    const rawDate  = appState.logDate || new Date().toISOString().slice(0, 10)
+    const project  = appState.projectName || 'Project Alpha'
+
+    const [y, mo, d] = rawDate.split('-')
+    const dateValue = `${d}-${mo}-${y}`
+
+    const subtitle = `${project} - ${rigValue} on ${dateValue}`
+    const filename = `chart_${subtitle}.png`
+
+    // ── 2. Filter rows to match current chart view ────────────────
+    const maxDate = appState.logRows
+      .map(r => r.logDate)
+      .filter(Boolean)
+      .sort()
+      .pop() || ''
+
+    const filterDate = maxDate
+    const filterTeam = appState.chartFilterTeam || ''
+
+    const filteredRows = appState.logRows.filter(r => {
+      if (filterDate && r.logDate !== filterDate) return false
+      if (filterTeam && r.teamRig !== filterTeam) return false
+      return true
+    })
+
+    if (!filteredRows.length) {
+      alert('No data to export for the current chart filters.')
       return
     }
+
+    // ── 3. Compute axis ranges from filtered data ─────────────────
+    let minTime = Infinity, maxTime = -Infinity, maxDepth = 10
+    for (const row of filteredRows) {
+      const tIn  = parseTime(row.timeIn)
+      const tOut = parseTime(row.timeOut)
+      if (tIn  !== null) { if (tIn  < minTime) minTime = tIn;  if (tIn  > maxTime) maxTime = tIn  }
+      if (tOut !== null) { if (tOut < minTime) minTime = tOut; if (tOut > maxTime) maxTime = tOut }
+      const sd = parseFloat(row.startDepth)
+      const ed = parseFloat(row.endDepth)
+      if (!isNaN(sd) && sd > maxDepth) maxDepth = sd
+      if (!isNaN(ed) && ed > maxDepth) maxDepth = ed
+    }
+    const xMin = minTime !== Infinity  ? Math.floor(minTime / 60) * 60 - 60 : 360
+    const xMax = maxTime !== -Infinity ? Math.ceil(maxTime  / 60) * 60 + 60 : 1320
+    const yMin = 0
+    const yMax = Math.ceil(maxDepth) + 1
+
+    // ── 4. Canvas pixel dimensions (landscape 16:9) ───────────────
+    const CANVAS_W = 1600
+    const CANVAS_H = 900
+
+    // ── 5. Build chart data & annotations ─────────────────────────
+    const chartData   = buildChartDataForExport(filteredRows)
+    const annotations = buildAnnotationsForExport(
+      filteredRows, xMin, xMax, yMin, yMax, CANVAS_W, CANVAS_H,
+    )
+
+    // ── 6. Create off-screen canvas ───────────────────────────────
+    containerEl = document.createElement('div')
+    containerEl.style.cssText = 'position:fixed;left:-9999px;top:-9999px;'
+    const canvasEl = document.createElement('canvas')
+    canvasEl.width  = CANVAS_W
+    canvasEl.height = CANVAS_H
+    containerEl.appendChild(canvasEl)
+    document.body.appendChild(containerEl)
+
+    // ── 7. Import Chart.js + annotation plugin ────────────────────
+    const [
+      { Chart: ChartJS, LinearScale, PointElement, LineElement, Tooltip, Legend },
+      { default: annotationPlugin },
+    ] = await Promise.all([
+      import('chart.js'),
+      import('chartjs-plugin-annotation'),
+    ])
+    ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend)
+    ChartJS.register(annotationPlugin)
+
+    // ── 8. Instantiate chart at landscape pixel dimensions ────────
+    chartInstance = new ChartJS(canvasEl, {
+      type: 'scatter',
+      data: chartData,
+      options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        animation: false,
+        devicePixelRatio: 1,
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false },
+          annotation: { annotations },
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: xMin,
+            max: xMax,
+            title: {
+              display: true,
+              text: 'Time',
+              font: { size: 14, weight: 'bold' },
+            },
+            ticks: {
+              stepSize: 60,
+              callback(val) { return minutesToTimeLabel(val) },
+              font: { size: 12 },
+            },
+            grid: { color: '#e2e8f0', drawOnChartArea: true },
+            afterBuildTicks(axis) {
+              axis.ticks = axis.ticks.filter(t => t.value % 60 === 0)
+            },
+          },
+          y: {
+            type: 'linear',
+            offset: true,
+            min: yMin,
+            max: yMax,
+            title: {
+              display: true,
+              text: 'Depth below ground (m)',
+              font: { size: 14, weight: 'bold' },
+            },
+            ticks: {
+              callback(val) { return val + ' m' },
+              font: { size: 12 },
+            },
+            grid: { color: '#e2e8f0', drawOnChartArea: true },
+          },
+        },
+      },
+    })
+
+    // ── 9. Wait for chart to fully render ─────────────────────────
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    // ── 10. Export canvas to PNG and download ─────────────────────
+    const pngDataUrl = canvasEl.toDataURL('image/png')
     const link = document.createElement('a')
-    link.download = `chart_${appState.projectName || 'export'}_${new Date().toISOString().slice(0, 10)}.png`
-    link.href = appState.chartSnapshot
+    link.download = filename
+    link.href = pngDataUrl
     link.click()
+
+    // ── 11. Clean up off-screen DOM ───────────────────────────────
+    chartInstance.destroy()
+    chartInstance = null
+    document.body.removeChild(containerEl)
+    containerEl = null
   } catch (e) {
+    console.error('PNG export failed:', e)
     alert('Failed to export PNG: ' + e.message)
   } finally {
+    // Ensure cleanup even on error
+    if (chartInstance) {
+      try { chartInstance.destroy() } catch (_) { /* ignore */ }
+    }
+    if (containerEl && containerEl.parentNode) {
+      try { document.body.removeChild(containerEl) } catch (_) { /* ignore */ }
+    }
     pngLoading.value = false
   }
 }
