@@ -5,6 +5,7 @@
       <router-link to="/summary" class="nav-item">Summary</router-link>
       <router-link to="/chart" class="nav-item">Chart</router-link>
       <router-link to="/export" class="nav-item">Export</router-link>
+      <router-link to="/dashboard" class="nav-item">Dashboard</router-link>
       <router-link to="/setup" class="nav-item nav-setup">⚙</router-link>
       <button class="nav-item nav-logout" @click="logout">Logout</button>
     </nav>
@@ -33,7 +34,7 @@ const route = useRoute()
 const isLoggedIn = computed(() => !!appState.user)
 
 // ── Swipe navigation ──
-const routeOrder = ['InputSetup', 'Summary', 'Chart', 'Export']
+const routeOrder = ['InputSetup', 'Summary', 'Chart', 'Export', 'Dashboard']
 const touchStartX = ref(0)
 const touchStartY = ref(0)
 const SWIPE_THRESHOLD = 60

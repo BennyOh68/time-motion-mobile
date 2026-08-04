@@ -252,3 +252,74 @@ export async function syncToGoogleSheets({
   return { count: rows.length, duplicateCount, url }
 }
 
+// ── Public: Read all rows from a Google Sheet tab ───────────────
+/**
+ * Fetch all rows from a specific tab and return them as an array of
+ * objects keyed by the header row.
+ *
+ * @param {object}   options
+ * @param {string}   options.clientEmail  - Service account email
+ * @param {string}   options.privateKey   - PEM-encoded PKCS#8 private key
+ * @param {string}   options.spreadsheetId
+ * @param {string}   options.tabName      - Sheet tab name to read
+ * @returns {Promise<object[]>} Array of row objects (empty array if tab is empty or missing)
+ */
+export async function readSheetData({ clientEmail, privateKey, spreadsheetId, tabName }) {
+  const cleanKey = privateKey.replace(/\\n/g, '\n')
+  const key = await importKey(cleanKey)
+  const accessToken = await getAccessToken(clientEmail, key)
+
+  const range = encodeURI(`'${tabName}'!A:Z`)
+  const res = await fetch(
+    `${SHEETS_API}/${spreadsheetId}/values/${range}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+
+  if (!res.ok) {
+    // Tab doesn't exist or is empty — return empty array
+    return []
+  }
+
+  const data = await res.json()
+  const allRows = data.values
+  if (!allRows || allRows.length < 2) return []
+
+  const headers = allRows[0].map(h => h.toLowerCase().trim())
+  const result = []
+
+  for (let r = 1; r < allRows.length; r++) {
+    const row = allRows[r]
+    const obj = {}
+    for (let c = 0; c < headers.length; c++) {
+      obj[headers[c]] = row[c] !== undefined ? String(row[c]).trim() : ''
+    }
+    result.push(obj)
+  }
+
+  return result
+}
+
+// ── Public: List all tab names in a spreadsheet ─────────────────
+/**
+ * @param {object}   options
+ * @param {string}   options.clientEmail
+ * @param {string}   options.privateKey
+ * @param {string}   options.spreadsheetId
+ * @returns {Promise<string[]>} Array of tab/sheet names
+ */
+export async function listSheetTabs({ clientEmail, privateKey, spreadsheetId }) {
+  const cleanKey = privateKey.replace(/\\n/g, '\n')
+  const key = await importKey(cleanKey)
+  const accessToken = await getAccessToken(clientEmail, key)
+
+  const metaRes = await fetch(
+    `${SHEETS_API}/${spreadsheetId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+
+  if (!metaRes.ok) return []
+
+  const meta = await metaRes.json()
+  return (meta.sheets || []).map(s => s.properties?.title).filter(Boolean)
+}
+
