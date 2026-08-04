@@ -68,24 +68,36 @@ const pdfLoading = ref(false)
 
 // ── Shared export row mapper ──
 const EXPORT_HEADERS = [
-  'Point Ref.',
+  'date',
+  'project',
   'team/rig',
+  'work type',
+  'ref. point',
+  'category',
   'activity',
   'time in',
   'time out',
   'start depth',
   'end depth',
+  'duplicate_flag',
+  'synced_by',
 ]
 
 function mapExportRows(rows) {
   return rows.map(row => ({
-    'Point Ref.': [row.workType, row.refPoint].filter(Boolean).join(' '),
+    'date': row.logDate || '',
+    'project': row.projectName || '',
     'team/rig': row.teamRig || '',
+    'work type': row.workType || '',
+    'ref. point': row.refPoint || '',
+    'category': row.category || '',
     'activity': row.activityName || '',
     'time in': row.timeIn || '',
     'time out': row.timeOut || '',
     'start depth': row.startDepth ?? '',
     'end depth': row.endDepth ?? '',
+    'duplicate_flag': '',
+    'synced_by': appState.user?.email || '',
   }))
 }
 
@@ -145,7 +157,24 @@ async function syncToSheets() {
       tabName: appState.projectName || 'TimeMotion',
       rows: exportRows,
     })
-    syncMsg.value = `✅ Synced ${result.count} rows. <a href="${result.url}" target="_blank" rel="noopener">Open Google Sheet</a>`
+
+    let msg = `✅ Synced ${result.count} rows`
+    if (result.duplicateCount > 0) {
+      msg += ` (${result.duplicateCount} flagged as duplicate)`
+    }
+    msg += `. <a href="${result.url}" target="_blank" rel="noopener">Open Google Sheet</a>`
+
+    // ── Rolling local deletion: keep last 2 days, drop oldest if 3+ days exist ──
+    const dates = [...new Set(appState.logRows.map(r => r.logDate))].sort()
+    if (dates.length >= 3) {
+      const oldest = dates[0]
+      const before = appState.logRows.length
+      appState.logRows = appState.logRows.filter(r => r.logDate !== oldest)
+      const removed = before - appState.logRows.length
+      msg += `<br>🗑️ Removed ${removed} rows from ${oldest} (local storage).`
+    }
+
+    syncMsg.value = msg
   } catch (e) {
     syncMsg.value = `❌ ${e.message}`
     syncError.value = true

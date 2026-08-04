@@ -119,13 +119,17 @@ async function ensureSheet(spreadsheetId, tabName, accessToken) {
 /**
  * Append rows to a Google Sheet tab named by projectName.
  *
+ * Detects duplicates by fingerprint (date|workType|refPoint|activity|timeIn|timeOut)
+ * and flags them with a duplicate_flag column. Duplicates are still appended
+ * so that conflicting records from different users can be reviewed.
+ *
  * @param {object}   options
  * @param {string}   options.clientEmail  - Service account email
  * @param {string}   options.privateKey   - PEM-encoded PKCS#8 private key
  * @param {string}   options.spreadsheetId
  * @param {string}   options.tabName      - Sheet tab name (e.g. project name)
  * @param {object[]} options.rows         - Array of flat row objects
- * @returns {Promise<{count: number}>}
+ * @returns {Promise<{count: number, duplicateCount: number, url: string}>}
  */
 export async function syncToGoogleSheets({
   clientEmail,
@@ -146,7 +150,67 @@ export async function syncToGoogleSheets({
 
   // Build headers and values from mapped rows
   const headers = Object.keys(rows[0])
-  const values = rows.map(row => headers.map(h => row[h] ?? ''))
+
+  // ── Read existing rows to build fingerprint set ──
+  let existingFingerprints = new Set()
+  const readUrl = `${SHEETS_API}/${spreadsheetId}/values/${encodeURI(`'${tabName}'!A:Z`)}`
+  const readRes = await fetch(readUrl, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+
+  if (readRes.ok) {
+    const readData = await readRes.json()
+    const allRows = readData.values
+    if (allRows && allRows.length > 1) {
+      // First row is headers — find column indices
+      const hdr = allRows[0]
+      const idx = (name) => {
+        const i = hdr.indexOf(name)
+        return i >= 0 ? i : -1
+      }
+      const iDate = idx('date')
+      const iWorkType = idx('work type')
+      const iRefPoint = idx('ref. point')
+      const iActivity = idx('activity')
+      const iTimeIn = idx('time in')
+      const iTimeOut = idx('time out')
+
+      // Build fingerprints from data rows (skip header row)
+      for (let r = 1; r < allRows.length; r++) {
+        const row = allRows[r]
+        const fp = [
+          iDate >= 0 ? (row[iDate] || '') : '',
+          iWorkType >= 0 ? (row[iWorkType] || '') : '',
+          iRefPoint >= 0 ? (row[iRefPoint] || '') : '',
+          iActivity >= 0 ? (row[iActivity] || '') : '',
+          iTimeIn >= 0 ? (row[iTimeIn] || '') : '',
+          iTimeOut >= 0 ? (row[iTimeOut] || '') : '',
+        ].join('|')
+        existingFingerprints.add(fp)
+      }
+    }
+  }
+  // If read fails (empty tab, etc.), existingFingerprints stays empty — all rows treated as new
+
+  // ── Tag duplicates ──
+  let duplicateCount = 0
+  const dupColIdx = headers.indexOf('duplicate_flag')
+  const values = rows.map(row => {
+    const fp = [
+      row['date'] || '',
+      row['work type'] || '',
+      row['ref. point'] || '',
+      row['activity'] || '',
+      row['time in'] || '',
+      row['time out'] || '',
+    ].join('|')
+    const vals = headers.map(h => row[h] ?? '')
+    if (existingFingerprints.has(fp)) {
+      vals[dupColIdx] = '⚠️ DUPLICATE'
+      duplicateCount++
+    }
+    return vals
+  })
 
   // Check if tab already has headers
   const rangeQuery = encodeURI(`'${tabName}'!A1`)
@@ -185,6 +249,6 @@ export async function syncToGoogleSheets({
   }
 
   const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`
-  return { count: rows.length, url }
+  return { count: rows.length, duplicateCount, url }
 }
 
