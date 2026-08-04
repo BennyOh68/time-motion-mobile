@@ -109,7 +109,29 @@ async function exportCSV() {
       alert('No data to export.')
       return
     }
-    const rows = mapExportRows(appState.logRows)
+    let rows = mapExportRows(appState.logRows)
+
+    // ── Detect intra-batch duplicates by fingerprint ──
+    const seen = new Set()
+    let dupCount = 0
+    rows = rows.map(row => {
+      const fp = [
+        row['date'] || '',
+        row['work type'] || '',
+        row['ref. point'] || '',
+        row['activity'] || '',
+        row['time in'] || '',
+        row['time out'] || '',
+      ].join('|')
+      if (seen.has(fp)) {
+        row['duplicate_flag'] = '⚠️ DUPLICATE'
+        dupCount++
+      } else {
+        seen.add(fp)
+      }
+      return row
+    })
+
     const csvRows = [
       EXPORT_HEADERS.join(','),
       ...rows.map(row =>
@@ -130,6 +152,20 @@ async function exportCSV() {
     link.href = url
     link.click()
     URL.revokeObjectURL(url)
+
+    // ── Rolling local deletion: keep last 2 days, drop oldest if 3+ days exist ──
+    const dates = [...new Set(appState.logRows.map(r => r.logDate))].sort()
+    let delMsg = ''
+    if (dates.length >= 3) {
+      const oldest = dates[0]
+      const before = appState.logRows.length
+      appState.logRows = appState.logRows.filter(r => r.logDate !== oldest)
+      const removed = before - appState.logRows.length
+      delMsg = `\n🗑️ Removed ${removed} rows from ${oldest} (local storage).`
+    }
+
+    const extra = dupCount > 0 ? ` (${dupCount} flagged as duplicate)` : ''
+    alert(`✅ Downloaded ${rows.length} rows as CSV${extra}.${delMsg}`)
   } catch (e) {
     alert('Failed to export CSV: ' + e.message)
   } finally {
