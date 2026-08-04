@@ -1,5 +1,14 @@
 <template>
-  <div class="dashboard-page">
+  <!-- UNAUTHORIZED OVERLAY -->
+  <div v-if="!isAuthorized" class="unauth-overlay">
+    <div class="unauth-card">
+      <div class="unauth-icon">⚠️</div>
+      <div class="unauth-text">Authorised User Only</div>
+    </div>
+  </div>
+
+  <!-- AUTHORIZED DASHBOARD -->
+  <div v-else class="dashboard-page">
     <h2>📊 Dashboard</h2>
 
     <!-- Tab Selector -->
@@ -125,8 +134,16 @@ import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { readSheetData, listSheetTabs } from '../lib/googleSheets.js'
+import { appState } from '../store/appState.js'
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels)
+
+// ── Authorized user gate ──
+const ALLOWED_EMAIL = 'bennyoh68@gmail.com'
+const isAuthorized = computed(() => {
+  const email = appState.user?.email || ''
+  return email.toLowerCase() === ALLOWED_EMAIL
+})
 
 // ── Constants ──
 const SPREADSHEET_ID = import.meta.env.VITE_GCP_SPREADSHEET_ID
@@ -700,5 +717,34 @@ h2 {
 .debug-bar code {
   color: #713f12;
   word-break: break-all;
+}
+
+/* ── Unauthorized overlay ── */
+.unauth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+.unauth-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 48px 40px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.unauth-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+.unauth-text {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #dc2626;
+  letter-spacing: 0.5px;
 }
 </style>
