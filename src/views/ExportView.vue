@@ -203,45 +203,41 @@ function minutesToTimeLabel(minutes) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-// Build chart datasets grouped by activityName (mirrors ChartView)
+// Build chart datasets — one dataset per row (mirrors ChartView)
 function buildChartDataForExport(filteredRows) {
-  const activityMap = new Map()
+  // Build activity→color lookup (preserve ordering of first appearance)
+  const activityColorMap = new Map()
+  let colorIdx = 0
   for (const row of filteredRows) {
     const name = row.activityName || '(Unnamed)'
-    if (!activityMap.has(name)) activityMap.set(name, [])
-    activityMap.get(name).push(row)
+    if (!activityColorMap.has(name)) {
+      activityColorMap.set(name, ACTIVITY_COLORS[colorIdx % ACTIVITY_COLORS.length])
+      colorIdx++
+    }
   }
 
+  // Sort all rows by timeIn (global order)
+  const sortedRows = [...filteredRows].sort((a, b) => (a.timeIn || '').localeCompare(b.timeIn || ''))
+
   const datasets = []
-  let colorIdx = 0
 
-  for (const [activityName, activityRows] of activityMap) {
-    activityRows.sort((a, b) => (a.timeIn || '').localeCompare(b.timeIn || ''))
+  for (const row of sortedRows) {
+    const tIn = parseTime(row.timeIn)
+    const tOut = parseTime(row.timeOut)
+    const sDepth = parseFloat(row.startDepth)
+    const eDepth = parseFloat(row.endDepth)
 
-    const data = []
-    for (const row of activityRows) {
-      const tIn = parseTime(row.timeIn)
-      const tOut = parseTime(row.timeOut)
-      const sDepth = parseFloat(row.startDepth)
-      const eDepth = parseFloat(row.endDepth)
+    if (tIn === null || tOut === null) continue
 
-      if (tIn !== null && tOut !== null) {
-        data.push({ x: tIn, y: !isNaN(sDepth) ? sDepth : 0 })
-        data.push({ x: tOut, y: !isNaN(eDepth) ? eDepth : 0 })
-        data.push({ x: NaN, y: NaN }) // segment break
-      }
-    }
-
-    while (data.length > 0 && isNaN(data[data.length - 1]?.x)) {
-      data.pop()
-    }
-
-    const color = ACTIVITY_COLORS[colorIdx % ACTIVITY_COLORS.length]
-    colorIdx++
+    const name = row.activityName || '(Unnamed)'
+    const color = activityColorMap.get(name) || '#64748b'
 
     datasets.push({
-      label: activityName,
-      data,
+      label: name,
+      data: [
+        { x: tIn,  y: !isNaN(sDepth) ? sDepth : 0 },
+        { x: tOut, y: !isNaN(eDepth) ? eDepth : 0 },
+      ],
       backgroundColor: color,
       borderColor: color,
       pointRadius: 5,

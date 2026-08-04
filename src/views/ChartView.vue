@@ -200,60 +200,43 @@ const axisRanges = computed(() => {
   return { xMin, xMax, yMin, yMax }
 })
 
-// ── Build chart datasets (grouped by activityName, null separators)
+// ── Build chart datasets (one dataset per row — no separators needed) ─
 function buildChartData() {
   const rows = filteredRows.value
 
-  // Group rows by activityName
-  const activityMap = new Map()
+  // Build activity→color lookup (preserve ordering of first appearance)
+  const activityColorMap = new Map()
+  let colorIdx = 0
   for (const row of rows) {
     const name = row.activityName || '(Unnamed)'
-    if (!activityMap.has(name)) activityMap.set(name, [])
-    activityMap.get(name).push(row)
+    if (!activityColorMap.has(name)) {
+      activityColorMap.set(name, ACTIVITY_COLORS[colorIdx % ACTIVITY_COLORS.length])
+      colorIdx++
+    }
   }
 
+  // Sort all rows by timeIn (global order, interleaved across refPoints)
+  const sortedRows = [...rows].sort((a, b) => (a.timeIn || '').localeCompare(b.timeIn || ''))
+
   const datasets = []
-  let colorIdx = 0
 
-  for (const [activityName, activityRows] of activityMap) {
-    // Sort by timeIn
-    activityRows.sort((a, b) => (a.timeIn || '').localeCompare(b.timeIn || ''))
+  for (const row of sortedRows) {
+    const tIn = parseTime(row.timeIn)
+    const tOut = parseTime(row.timeOut)
+    const sDepth = parseFloat(row.startDepth)
+    const eDepth = parseFloat(row.endDepth)
 
-    const data = []
+    if (tIn === null || tOut === null) continue
 
-    for (const row of activityRows) {
-      const tIn = parseTime(row.timeIn)
-      const tOut = parseTime(row.timeOut)
-      const sDepth = parseFloat(row.startDepth)
-      const eDepth = parseFloat(row.endDepth)
-
-      // Need both times for a line segment
-      if (tIn !== null && tOut !== null) {
-        data.push({
-          x: tIn,
-          y: !isNaN(sDepth) ? sDepth : 0,
-        })
-        data.push({
-          x: tOut,
-          y: !isNaN(eDepth) ? eDepth : 0,
-        })
-        // NaN separator — breaks line between segments of same activity
-        // Chart.js Scatter showLine properly skips NaN points, unlike null
-        data.push({ x: NaN, y: NaN })
-      }
-    }
-
-    // Remove trailing NaN separator if present
-    while (data.length > 0 && isNaN(data[data.length - 1]?.x)) {
-      data.pop()
-    }
-
-    const color = ACTIVITY_COLORS[colorIdx % ACTIVITY_COLORS.length]
-    colorIdx++
+    const name = row.activityName || '(Unnamed)'
+    const color = activityColorMap.get(name) || '#64748b'
 
     datasets.push({
-      label: activityName,
-      data,
+      label: name,
+      data: [
+        { x: tIn,  y: !isNaN(sDepth) ? sDepth : 0 },
+        { x: tOut, y: !isNaN(eDepth) ? eDepth : 0 },
+      ],
       backgroundColor: color,
       borderColor: color,
       pointRadius: 4,
