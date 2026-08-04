@@ -687,11 +687,12 @@ h2 {
 }
 
 .nav-action {
-  width: auto;
+  flex: 1;
   padding: 0 12px;
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
+  justify-content: center;
 }
 
 .nav-action.nav-next {
