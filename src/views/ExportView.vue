@@ -280,10 +280,11 @@ async function exportPNG() {
     const yMax = Math.ceil(maxDepth) + 1
 
     // ── 4. Canvas pixel dimensions ──────────────────────────────────
-    const CHART_W     = 1600
+    const MARGIN      = 40    // left/right padding around chart
+    const CHART_W     = 1600 - MARGIN * 2   // chart area within margins
     const CHART_H     = 900
     const HEADER_H    = 100   // space for title + subtitle
-    const COMPOSITE_W = CHART_W
+    const COMPOSITE_W = 1600
     const COMPOSITE_H = CHART_H + HEADER_H
 
     // ── 5. Build chart data & annotations ─────────────────────────
@@ -392,8 +393,8 @@ async function exportPNG() {
     ctx.fillStyle = '#475569'
     ctx.fillText(`${project}  /  ${rigValue}  /  ${dateValue}`, COMPOSITE_W / 2, 70)
 
-    // Draw chart below header (chartCanvas still has rendered pixels)
-    ctx.drawImage(chartCanvas, 0, HEADER_H)
+    // Draw chart below header with left/right margins
+    ctx.drawImage(chartCanvas, MARGIN, HEADER_H)
 
     // ── 11. Export composite canvas to PNG and download ───────────
     const pngDataUrl = compCanvas.toDataURL('image/png')
