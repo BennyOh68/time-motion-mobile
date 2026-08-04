@@ -16,7 +16,7 @@
       No entries yet. Go back to the Input page to add data.
     </div>
 
-    <div v-else class="table-wrapper" ref="tableWrapperRef">
+    <div v-else class="table-wrapper" ref="tableWrapperRef" @touchstart.stop @touchend.stop>
         <table>
           <thead>
             <tr>
