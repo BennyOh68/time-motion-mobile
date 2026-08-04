@@ -49,10 +49,13 @@
           <span class="color-dot" :style="{ background: cat.color }"></span>
           {{ cat.name }}
         </span>
-        <span class="val-col">
-          <span class="val-hr">{{ cat.avgHours }} h</span>
-          <span class="val-pct">{{ cat.pct }}%</span>
-        </span>
+        <span class="hr-col">{{ cat.avgHours }} h</span>
+        <span class="pct-col">{{ cat.pct }}%</span>
+      </div>
+      <div class="report-row total-row">
+        <span class="cat-col">Total</span>
+        <span class="hr-col">{{ reportTotalHours }} h</span>
+        <span class="pct-col">100%</span>
       </div>
     </div>
 
@@ -305,6 +308,19 @@ const categories = computed(() => {
       _hours: data.totalHours,
     }
   })
+})
+
+// ── Computed: report total hours (sum of avgHours across categories for the Total row) ──
+const reportTotalHours = computed(() => {
+  const { catMap, dates, weeks, months } = processRows()
+  const totalHoursAll = [...catMap.values()].reduce((s, c) => s + c.totalHours, 0)
+
+  let divisor
+  if (viewMode.value === 'Daily') divisor = dates.size
+  else if (viewMode.value === 'Weekly') divisor = weeks.size
+  else divisor = months.size
+
+  return divisor > 0 ? (totalHoursAll / divisor).toFixed(1) : '0.0'
 })
 
 // ── Computed: project totals ──
@@ -591,21 +607,36 @@ h2 {
   gap: 6px;
   color: #334155;
   font-weight: 500;
+  flex: 1;
 }
-.val-col {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+.hr-col {
+  width: 60px;
+  text-align: right;
   color: #1e293b;
   font-weight: 600;
-  line-height: 1.25;
-}
-.val-hr {
   font-size: 0.85rem;
 }
-.val-pct {
-  font-size: 0.72rem;
+.pct-col {
+  width: 50px;
+  text-align: right;
   color: #64748b;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.total-row {
+  border-top: 2px solid #e2e8f0 !important;
+  margin-top: 2px;
+  padding-top: 7px;
+  font-weight: 700;
+}
+.total-row .cat-col {
+  color: #1e293b;
+  font-weight: 700;
+}
+.total-row .hr-col,
+.total-row .pct-col {
+  color: #1e293b;
+  font-weight: 700;
 }
 .color-dot {
   width: 10px;
