@@ -1,6 +1,6 @@
-﻿<template>
+<template>
   <div class="summary-page">
-    <h2>ðŸ“ Summary for Edit</h2>
+    <h2>📝 Summary for Edit</h2>
     <div class="info-bar">
       <span class="info-left">{{ infoSummary }}</span>
       <button
@@ -8,7 +8,7 @@
         class="btn-undo"
         title="Undo last edit"
         @click="undoLastEdit"
-      >â†©</button>
+      >↩</button>
       <span class="info-right">{{ formattedDate }}</span>
     </div>
 
@@ -76,7 +76,7 @@
                   readonly
                   :value="formatDepth(row.startDepth)"
                   :class="['cell-input', 'depth-cell', 'pickable-cell', { 'cell-mismatch': i > 0 && row.startDepth !== '' && row.startDepth != null && sortedRows[i-1].endDepth !== '' && sortedRows[i-1].endDepth != null && Number(row.startDepth) !== Number(sortedRows[i-1].endDepth) }]"
-                  placeholder="â€”"
+                  placeholder="—"
                   @click="openDepthPicker(row, 'startDepth')"
                 />
               </td>
@@ -86,7 +86,7 @@
                   readonly
                   :value="formatDepth(row.endDepth)"
                   class="cell-input depth-cell pickable-cell"
-                  placeholder="â€”"
+                  placeholder="—"
                   @click="openDepthPicker(row, 'endDepth')"
                 />
               </td>
@@ -104,23 +104,23 @@
 
     <!-- Custom scrollbar below table -->
     <div v-if="sortedRows.length > 0" class="custom-scrollbar">
-      <button class="scroll-arrow" @pointerdown.prevent="startScroll(-150)" @pointerup="stopScroll" @pointerleave="stopScroll" aria-label="Scroll left">â—€</button>
+      <button class="scroll-arrow" @pointerdown.prevent="startScroll(-150)" @pointerup="stopScroll" @pointerleave="stopScroll" aria-label="Scroll left">◀</button>
       <div class="scroll-track" ref="scrollTrackRef">
         <div class="scroll-thumb" ref="scrollThumbRef" @pointerdown.prevent="startThumbDrag"></div>
       </div>
-      <button class="scroll-arrow" @pointerdown.prevent="startScroll(150)" @pointerup="stopScroll" @pointerleave="stopScroll" aria-label="Scroll right">â–¶</button>
+      <button class="scroll-arrow" @pointerdown.prevent="startScroll(150)" @pointerup="stopScroll" @pointerleave="stopScroll" aria-label="Scroll right">▶</button>
     </div>
 
-    <!-- Delete button â€” appears when any rows are selected -->
+    <!-- Delete button — appears when any rows are selected -->
     <div v-if="someSelected" class="delete-bar">
       <button class="btn-delete" @click="deleteSelected">
-        ðŸ—‘ {{ allSelected ? 'Delete ALL' : `Delete Selected (${selectedIds.size})` }}
+        🗑 {{ allSelected ? 'Delete ALL' : `Delete Selected (${selectedIds.size})` }}
       </button>
     </div>
 
     <div class="action-bar">
-      <button class="btn-outline" @click="router.push('/input')">â† Back</button>
-      <button class="btn-primary" @click="router.push('/chart')">Next â†’ Chart</button>
+      <button class="btn-outline" @click="router.push('/input')">← Back</button>
+      <button class="btn-primary" @click="router.push('/chart')">Next → Chart</button>
     </div>
 
     <!-- Scroll-based time picker -->
@@ -156,7 +156,7 @@ import ScrollDepthPicker from '../components/ScrollDepthPicker.vue'
 
 const router = useRouter()
 
-// â”€â”€ Selection state â”€â”€
+// ── Selection state ──
 const selectedIds = ref(new Set())
 
 const someSelected = computed(() => selectedIds.value.size > 0)
@@ -192,7 +192,7 @@ function deleteSelected() {
   selectedIds.value = new Set()
 }
 
-// â”€â”€ Sort â”€â”€
+// ── Sort ──
 const sortedRows = computed(() => {
   return [...appState.logRows].sort((a, b) => {
     const ta = a.timeIn || '99:99'
@@ -201,10 +201,10 @@ const sortedRows = computed(() => {
   })
 })
 
-// â”€â”€ Table wrapper ref â”€â”€
+// ── Table wrapper ref ──
 const tableWrapperRef = ref(null)
 
-// â”€â”€ Custom scrollbar synced to table â”€â”€
+// ── Custom scrollbar synced to table ──
 const scrollTrackRef = ref(null)
 const scrollThumbRef = ref(null)
 
@@ -244,7 +244,7 @@ function scrollTableTo(clientX) {
   table.scrollLeft = ratio * maxScroll
 }
 
-// â”€â”€ Auto-scroll repeat when holding arrow â”€â”€
+// ── Auto-scroll repeat when holding arrow ──
 let scrollInterval = null
 function startScroll(delta) {
   scrollTableBy(delta)
@@ -254,7 +254,7 @@ function stopScroll() {
   if (scrollInterval) { clearInterval(scrollInterval); scrollInterval = null }
 }
 
-// â”€â”€ Thumb dragging â”€â”€
+// ── Thumb dragging ──
 let dragging = false
 function startThumbDrag(e) {
   dragging = true
@@ -294,7 +294,7 @@ onUnmounted(() => {
   if (el) el.removeEventListener('scroll', syncScrollbar)
 })
 
-// â”€â”€ One-level undo â”€â”€
+// ── One-level undo ──
 const lastEditSnapshot = ref(null)
 
 function saveSnapshot(row, field) {
@@ -320,7 +320,7 @@ function undoLastEdit() {
   lastEditSnapshot.value = null
 }
 
-// â”€â”€ Time picker state â”€â”€
+// ── Time picker state ──
 const timePickerVisible = ref(false)
 const timePickerValue = ref('')
 const timePickerRow = ref(null)
@@ -367,7 +367,7 @@ function onTimeConfirm(displayValue) {
   timePickerVisible.value = false
 }
 
-// â”€â”€ Depth picker state â”€â”€
+// ── Depth picker state ──
 const depthPickerVisible = ref(false)
 const depthPickerValue = ref('')
 const depthPickerRow = ref(null)
@@ -403,7 +403,7 @@ function onDepthConfirm(value) {
   depthPickerVisible.value = false
 }
 
-// â”€â”€ Time formatting (24h â†” 12h am/pm) â”€â”€
+// ── Time formatting (24h ↔ 12h am/pm) ──
 function formatTime(hhmm) {
   if (!hhmm) return ''
   let raw = String(hhmm).replace(/\./g, ':').replace(/(am|pm)$/i, '').trim()
@@ -429,7 +429,7 @@ function formatTime(hhmm) {
   return `${h12}:${String(m).padStart(2, '0')}${ampm}`
 }
 
-// â”€â”€ Depth formatting (always show 1 decimal place; blank â†’ 0.0) â”€â”€
+// ── Depth formatting (always show 1 decimal place; blank → 0.0) ──
 function formatDepth(val) {
   if (val === undefined || val === null || val === '') return '0.0m'
   const num = parseFloat(String(val))
@@ -437,11 +437,11 @@ function formatDepth(val) {
   return num.toFixed(1) + 'm'
 }
 
-// â”€â”€ Info bar â”€â”€
+// ── Info bar ──
 const infoSummary = computed(() => {
   const typeRef = [appState.workType, appState.refPoint].filter(Boolean).join(' - ')
   const parts = [appState.projectName, typeRef, appState.teamRig].filter(Boolean)
-  return parts.join(' Â· ') || 'â€”'
+  return parts.join(' · ') || '—'
 })
 
 const formattedDate = computed(() => {
@@ -526,7 +526,7 @@ h2 {
   padding: 40px;
 }
 
-/* â”€â”€ Table scroll wrapper (scrollbar below) â”€â”€ */
+/* ── Table scroll wrapper (scrollbar below) ── */
 .table-wrapper {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -643,7 +643,7 @@ td {
   text-align: center;
 }
 
-/* â”€â”€ Pickable cell (readonly, tap to open picker) â”€â”€ */
+/* ── Pickable cell (readonly, tap to open picker) ── */
 .pickable-cell {
   cursor: pointer;
   caret-color: transparent;
@@ -660,7 +660,7 @@ td {
   color: #ef4444 !important;
 }
 
-/* â”€â”€ Custom scrollbar â”€â”€ */
+/* ── Custom scrollbar ── */
 .custom-scrollbar {
   display: flex;
   align-items: center;
@@ -727,7 +727,7 @@ td {
   cursor: grabbing;
 }
 
-/* â”€â”€ Delete bar â”€â”€ */
+/* ── Delete bar ── */
 .delete-bar {
   margin-bottom: 8px;
 }
@@ -749,7 +749,7 @@ td {
   background: #b91c1c;
 }
 
-/* â”€â”€ Action bar â”€â”€ */
+/* ── Action bar ── */
 .action-bar {
   display: flex;
   gap: 10px;
