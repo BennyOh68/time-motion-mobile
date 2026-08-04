@@ -228,10 +228,10 @@ const groupedRows = computed(() => {
   const rows = sortedRows.value
   const items = []
   let lastRefPoint = null
-  let sn = 0
 
-  // First pass: collect group keys
+  // First pass: collect group keys and row counts
   const groupKeys = []
+  const groupRowCounts = {}
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     if (row.refPoint && row.refPoint !== lastRefPoint) {
@@ -239,6 +239,8 @@ const groupedRows = computed(() => {
       groupKeys.push(gk)
       lastRefPoint = row.refPoint
     }
+    const gk = 'hdr-' + row.refPoint + '-' + (row.workType || '')
+    groupRowCounts[gk] = (groupRowCounts[gk] || 0) + 1
   }
 
   // Initialize collapsed once per unique group layout (avoids reactivity loop)
@@ -250,37 +252,31 @@ const groupedRows = computed(() => {
     }
   }
 
-  // Second pass: build items with row counts
+  // Second pass: push header BEFORE its data rows
   lastRefPoint = null
-  sn = 0
-  let rowCount = 0
-  let pendingHeader = null
+  let sn = 0
+  let currentHeaderKey = ''
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     if (row.refPoint && row.refPoint !== lastRefPoint) {
-      // Flush previous header with its row count
-      if (pendingHeader) {
-        pendingHeader.rowCount = rowCount
-        items.push(pendingHeader)
-      }
       const prefix = row.workType || ''
       const gk = 'hdr-' + row.refPoint + '-' + prefix
-      pendingHeader = { type: 'header', refPoint: row.refPoint, workType: prefix, groupKey: gk, key: gk, rowCount: 0 }
+      items.push({
+        type: 'header',
+        refPoint: row.refPoint,
+        workType: prefix,
+        groupKey: gk,
+        key: gk,
+        rowCount: groupRowCounts[gk] || 0
+      })
+      currentHeaderKey = gk
       lastRefPoint = row.refPoint
       sn = 0
-      rowCount = 0
     }
     sn++
-    rowCount++
     const prevRow = i > 0 ? rows[i - 1] : null
-    const headerKey = pendingHeader ? pendingHeader.key : ''
-    items.push({ type: 'data', data: row, key: row.id, sn, prevRow, headerKey })
-  }
-  // Flush final header
-  if (pendingHeader) {
-    pendingHeader.rowCount = rowCount
-    items.push(pendingHeader)
+    items.push({ type: 'data', data: row, key: row.id, sn, prevRow, headerKey: currentHeaderKey })
   }
 
   return items
