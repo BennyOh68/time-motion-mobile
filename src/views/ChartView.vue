@@ -31,7 +31,7 @@
 
 <script setup>
 defineOptions({ name: 'ChartView' })
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onActivated, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Scatter } from 'vue-chartjs'
 import {
@@ -553,6 +553,10 @@ async function captureSnapshot() {
 async function updateChart() {
   chartData.value = buildChartData()
   await nextTick()
+  // Force Canvas2D refresh after KeepAlive reactivation
+  if (scatterRef.value && scatterRef.value.chart) {
+    scatterRef.value.chart.update('none')
+  }
   captureSnapshot()
 }
 
@@ -571,6 +575,11 @@ onMounted(() => {
     filterTeam.value = teams.value[0]
   }
 
+  updateChart()
+})
+
+// Rebuild chart data when the component is re-activated from KeepAlive cache
+onActivated(() => {
   updateChart()
 })
 

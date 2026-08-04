@@ -56,6 +56,18 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { appState } from '../store/appState.js'
+import {
+  Chart as ChartJS,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+import annotationPlugin from 'chartjs-plugin-annotation'
+
+ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend)
+ChartJS.register(annotationPlugin)
 
 const router = useRouter()
 
@@ -302,16 +314,6 @@ async function exportPNG() {
     containerEl.appendChild(chartCanvas)
     document.body.appendChild(containerEl)
 
-    // ── 7. Import Chart.js + annotation plugin ────────────────────
-    const [
-      { Chart: ChartJS, LinearScale, PointElement, LineElement, Tooltip, Legend },
-      { default: annotationPlugin },
-    ] = await Promise.all([
-      import('chart.js'),
-      import('chartjs-plugin-annotation'),
-    ])
-    ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend)
-    ChartJS.register(annotationPlugin)
 
     // ── 8. Instantiate chart at landscape pixel dimensions ────────
     chartInstance = new ChartJS(chartCanvas, {
@@ -733,16 +735,6 @@ async function exportPDF() {
     containerEl.appendChild(canvasEl)
     document.body.appendChild(containerEl)
 
-    // ── 8. Import Chart.js + annotation plugin ────────────────────
-    const [
-      { Chart: ChartJS, LinearScale, PointElement, LineElement, Tooltip, Legend },
-      { default: annotationPlugin },
-    ] = await Promise.all([
-      import('chart.js'),
-      import('chartjs-plugin-annotation'),
-    ])
-    ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend)
-    ChartJS.register(annotationPlugin)
 
     // ── 9. Instantiate chart at A4 pixel dimensions ───────────────
     chartInstance = new ChartJS(canvasEl, {
