@@ -410,24 +410,8 @@ const chartOptions = computed(() => {
     maintainAspectRatio: false,
     aspectRatio: 5,
     plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          padding: 12,
-          usePointStyle: false,
-          boxWidth: 12,
-          boxHeight: 12,
-          font: { size: 11 },
-        },
-      },
-      tooltip: {
-        callbacks: {
-          label(ctx) {
-            const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0
-            return ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)} h (${pct}%)`
-          },
-        },
-      },
+      legend: { display: false },
+      tooltip: { enabled: false },
       datalabels: {
         color: '#fff',
         font: { weight: 'bold', size: 11, lineHeight: 1.15 },
