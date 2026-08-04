@@ -38,17 +38,22 @@
     </div>
     <p v-else-if="!loading && rows.length === 0" class="empty-msg">No data found in this tab.</p>
 
-    <!-- CATEGORY CARDS -->
-    <div v-if="rows.length > 0" class="cards-grid">
+    <!-- CATEGORY REPORT TABLE -->
+    <div v-if="rows.length > 0" class="report-table">
+      <div class="report-header">
+        <span class="report-col cat-col">CATEGORY</span>
+        <span class="report-col val-col">(avg per period)</span>
+      </div>
       <div
         v-for="cat in categories"
         :key="cat.name"
-        class="cat-card"
-        :style="{ borderLeftColor: cat.color }"
+        class="report-row"
       >
-        <div class="cat-label" :style="{ color: cat.color }">{{ cat.name }}</div>
-        <div class="cat-hours">{{ cat.avgHours }} h</div>
-        <div class="cat-pct">{{ cat.pct }}%</div>
+        <span class="cat-col">
+          <span class="color-dot" :style="{ background: cat.color }"></span>
+          {{ cat.name }}
+        </span>
+        <span class="val-col">{{ cat.avgHours }} h  &nbsp; {{ cat.pct }}%</span>
       </div>
     </div>
 
@@ -410,10 +415,12 @@ const chartOptions = computed(() => {
       },
       datalabels: {
         color: '#fff',
-        font: { weight: 'bold', size: 11 },
+        font: { weight: 'bold', size: 11, lineHeight: 1.15 },
+        textAlign: 'center',
         formatter(value, ctx) {
           const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0
-          return value > 0 ? `${pct}% (${value.toFixed(1)}h)` : ''
+          if (value <= 0) return ''
+          return [`${pct}%`, `${value.toFixed(1)} h`]
         },
         display(ctx) {
           return ctx.dataset.data[ctx.dataIndex] > 0
@@ -562,33 +569,53 @@ h2 {
 }
 
 /* ── Category Cards ── */
-.cards-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-.cat-card {
+/* ── Category Report Table ── */
+.report-table {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-left: 4px solid;
   border-radius: 8px;
   padding: 10px 12px;
+  margin-bottom: 16px;
 }
-.cat-label {
-  font-size: 0.72rem;
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
   font-weight: 600;
-  margin-bottom: 2px;
-  line-height: 1.2;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
 }
-.cat-hours {
-  font-size: 1.1rem;
-  font-weight: 700;
+.report-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 0.82rem;
+}
+.report-row + .report-row {
+  border-top: 1px solid #f8fafc;
+}
+.cat-col {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #334155;
+  font-weight: 500;
+}
+.val-col {
   color: #1e293b;
+  font-weight: 600;
+  text-align: right;
 }
-.cat-pct {
-  font-size: 0.75rem;
-  color: #64748b;
+.color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
 /* ── Totals ── */
