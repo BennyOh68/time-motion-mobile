@@ -15,9 +15,7 @@
       @touchend="onTouchEnd"
     >
       <router-view v-slot="{ Component }">
-        <KeepAlive :include="['ChartView']">
-          <component :is="Component" />
-        </KeepAlive>
+        <component :is="Component" />
       </router-view>
     </main>
   </div>

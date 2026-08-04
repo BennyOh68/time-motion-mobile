@@ -54,6 +54,7 @@ export const appState = reactive({
 
   // ── Chart filter defaults (persisted across sessions) ──
   chartFilterTeam: persisted?.chartFilterTeam || '',
+  chartFilterDate: persisted?.chartFilterDate || '',
 
   // ── Three-segment form entries ──
   prepActivity: persisted?.prepActivity || '',

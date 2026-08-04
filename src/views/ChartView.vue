@@ -31,7 +31,7 @@
 
 <script setup>
 defineOptions({ name: 'ChartView' })
-import { ref, computed, onMounted, onActivated, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Scatter } from 'vue-chartjs'
 import {
@@ -561,12 +561,17 @@ async function updateChart() {
 }
 
 onMounted(() => {
-  const maxDate = appState.logRows
-    .map(r => r.logDate)
-    .filter(Boolean)
-    .sort()
-    .pop()
-  if (maxDate) filterDate.value = maxDate
+  // Restore persisted chartFilterDate if available, otherwise default to max date
+  if (appState.chartFilterDate && filterDate.value !== appState.chartFilterDate) {
+    filterDate.value = appState.chartFilterDate
+  } else if (!filterDate.value) {
+    const maxDate = appState.logRows
+      .map(r => r.logDate)
+      .filter(Boolean)
+      .sort()
+      .pop()
+    if (maxDate) filterDate.value = maxDate
+  }
 
   // Default team filter: restore last-selected if still available, otherwise first team
   if (appState.chartFilterTeam && teams.value.includes(appState.chartFilterTeam)) {
@@ -578,12 +583,10 @@ onMounted(() => {
   updateChart()
 })
 
-// Rebuild chart data when the component is re-activated from KeepAlive cache
-onActivated(() => {
+watch(filterDate, (val) => {
+  appState.chartFilterDate = val
   updateChart()
 })
-
-watch(filterDate, updateChart)
 watch(filterTeam, (val) => {
   appState.chartFilterTeam = val
   updateChart()
