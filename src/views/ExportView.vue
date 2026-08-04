@@ -370,13 +370,7 @@ async function exportPNG() {
     await new Promise(resolve => requestAnimationFrame(resolve))
     await new Promise(resolve => requestAnimationFrame(resolve))
 
-    // ── 10. Clean up Chart.js instance & off-screen DOM ───────────
-    chartInstance.destroy()
-    chartInstance = null
-    document.body.removeChild(containerEl)
-    containerEl = null
-
-    // ── 11. Composite canvas: white bg + header text + chart ──────
+    // ── 10. Composite canvas: white bg + header text + chart ─────
     const compCanvas = document.createElement('canvas')
     compCanvas.width  = COMPOSITE_W
     compCanvas.height = COMPOSITE_H
@@ -398,15 +392,21 @@ async function exportPNG() {
     ctx.fillStyle = '#475569'
     ctx.fillText(`${project}  /  ${rigValue}  /  ${dateValue}`, COMPOSITE_W / 2, 70)
 
-    // Draw chart below header
+    // Draw chart below header (chartCanvas still has rendered pixels)
     ctx.drawImage(chartCanvas, 0, HEADER_H)
 
-    // ── 12. Export composite canvas to PNG and download ───────────
+    // ── 11. Export composite canvas to PNG and download ───────────
     const pngDataUrl = compCanvas.toDataURL('image/png')
     const link = document.createElement('a')
     link.download = filename
     link.href = pngDataUrl
     link.click()
+
+    // ── 12. Clean up Chart.js instance & off-screen DOM ───────────
+    chartInstance.destroy()
+    chartInstance = null
+    document.body.removeChild(containerEl)
+    containerEl = null
   } catch (e) {
     console.error('PNG export failed:', e)
     alert('Failed to export PNG: ' + e.message)
