@@ -22,9 +22,9 @@
       >{{ v }}</button>
     </div>
 
-    <!-- DONUT CHART -->
+    <!-- HORIZONTAL STACKED BAR CHART -->
     <div v-if="chartReady" class="chart-container">
-      <Doughnut v-if="hasChartData" :data="chartData" :options="chartOptions" />
+      <Bar v-if="hasChartData" :data="chartData" :options="chartOptions" />
       <p v-else class="empty-msg" style="padding: 12px 0;">Chart data is all zero — check category mapping.</p>
     </div>
     <p v-else-if="!loading && rows.length === 0" class="empty-msg">No data found in this tab.</p>
@@ -121,11 +121,12 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { Doughnut } from 'vue-chartjs'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
+import { Bar } from 'vue-chartjs'
+import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { readSheetData, listSheetTabs } from '../lib/googleSheets.js'
 
-ChartJS.register(ArcElement, Tooltip, Legend)
+ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels)
 
 // ── Constants ──
 const SPREADSHEET_ID = import.meta.env.VITE_GCP_SPREADSHEET_ID
@@ -345,23 +346,23 @@ const daysNeeded = computed(() => {
   return dailyProdMetres > 0 ? Math.ceil(remaining / dailyProdMetres) : 0
 })
 
-// ── Chart data ──
+// ── Chart data (horizontal stacked bar) ──
 const chartData = computed(() => {
   const cats = categories.value
   return {
-    labels: cats.map(c => c.name),
-    datasets: [{
-      data: cats.map(c => c._hours),
-      backgroundColor: cats.map(c => c.color),
+    labels: ['Time Breakdown'],
+    datasets: cats.map(c => ({
+      label: c.name,
+      data: [c._hours],
+      backgroundColor: c.color,
       borderColor: '#fff',
-      borderWidth: 2,
-    }],
+      borderWidth: 1,
+    })),
   }
 })
 
 const chartReady = computed(() => {
   if (rows.value.length === 0) return false
-  // Show chart even when all values are zero — Chart.js renders an empty ring
   return true
 })
 
@@ -370,25 +371,61 @@ const hasChartData = computed(() => {
   return cats.some(c => c._hours > 0)
 })
 
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: true,
-  plugins: {
-    legend: {
-      position: 'bottom',
-      labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 },
-    },
-    tooltip: {
-      callbacks: {
-        label(ctx) {
-          const total = ctx.dataset.data.reduce((a, b) => a + b, 0)
-          const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0
-          return ` ${ctx.label}: ${ctx.raw.toFixed(1)} h (${pct}%)`
+const chartOptions = computed(() => {
+  const total = categories.value.reduce((s, c) => s + c._hours, 0)
+  return {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    aspectRatio: 10,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          padding: 12,
+          usePointStyle: true,
+          pointStyleWidth: 10,
+          font: { size: 11 },
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label(ctx) {
+            const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0
+            return ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)} h (${pct}%)`
+          },
+        },
+      },
+      datalabels: {
+        color: '#fff',
+        font: { weight: 'bold', size: 11 },
+        formatter(value, ctx) {
+          const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0
+          return value > 0 ? `${pct}% (${value.toFixed(1)}h)` : ''
+        },
+        display(ctx) {
+          return ctx.dataset.data[ctx.dataIndex] > 0
         },
       },
     },
-  },
-}
+    scales: {
+      x: {
+        stacked: true,
+        ticks: {
+          callback(val) { return val + ' h' },
+          font: { size: 10 },
+        },
+        grid: { display: false },
+      },
+      y: {
+        stacked: true,
+        grid: { display: false },
+        ticks: { display: false },
+        border: { display: false },
+      },
+    },
+  }
+})
 
 // ── Load tabs on mount ──
 onMounted(async () => {
@@ -507,7 +544,8 @@ h2 {
 
 /* ── Chart ── */
 .chart-container {
-  max-width: 340px;
+  max-width: 100%;
+  height: 80px;
   margin: 0 auto 16px;
 }
 
