@@ -40,10 +40,6 @@
 
     <!-- CATEGORY REPORT TABLE -->
     <div v-if="rows.length > 0" class="report-table">
-      <div class="report-header">
-        <span class="report-col cat-col">CATEGORY</span>
-        <span class="report-col val-col">(avg per period)</span>
-      </div>
       <div
         v-for="cat in categories"
         :key="cat.name"
@@ -53,7 +49,10 @@
           <span class="color-dot" :style="{ background: cat.color }"></span>
           {{ cat.name }}
         </span>
-        <span class="val-col">{{ cat.avgHours }} h  &nbsp; {{ cat.pct }}%</span>
+        <span class="val-col">
+          <span class="val-hr">{{ cat.avgHours }} h</span>
+          <span class="val-pct">{{ cat.pct }}%</span>
+        </span>
       </div>
     </div>
 
@@ -296,13 +295,13 @@ const categories = computed(() => {
     else if (viewMode.value === 'Weekly') divisor = weeks.size
     else divisor = months.size
 
-    const avgHours = divisor > 0 ? +(data.totalHours / divisor).toFixed(1) : 0
-    const pct = totalHoursAll > 0 ? +((data.totalHours / totalHoursAll) * 100).toFixed(1) : 0
+    const avgHours = divisor > 0 ? (data.totalHours / divisor).toFixed(1) : '0.0'
+    const pct = totalHoursAll > 0 ? ((data.totalHours / totalHoursAll) * 100).toFixed(1) : '0.0'
 
     return {
       ...cfg,
-      avgHours: String(avgHours),
-      pct: String(pct),
+      avgHours,
+      pct,
       _hours: data.totalHours,
     }
   })
@@ -568,7 +567,6 @@ h2 {
   margin: 0 auto 16px;
 }
 
-/* ── Category Cards ── */
 /* ── Category Report Table ── */
 .report-table {
   background: #fff;
@@ -576,18 +574,6 @@ h2 {
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 16px;
-}
-.report-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #f1f5f9;
-  margin-bottom: 4px;
 }
 .report-row {
   display: flex;
@@ -607,9 +593,19 @@ h2 {
   font-weight: 500;
 }
 .val-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   color: #1e293b;
   font-weight: 600;
-  text-align: right;
+  line-height: 1.25;
+}
+.val-hr {
+  font-size: 0.85rem;
+}
+.val-pct {
+  font-size: 0.72rem;
+  color: #64748b;
 }
 .color-dot {
   width: 10px;
