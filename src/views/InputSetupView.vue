@@ -142,21 +142,23 @@
         <div class="field half">
           <label>Start Depth (m)</label>
           <input
-            v-model="currentStartDepth"
-            type="number"
-            step="0.1"
-            min="0"
-            placeholder="0.0"
+            type="text"
+            readonly
+            :value="formatDepthDisplay(currentStartDepth)"
+            placeholder="Tap to select"
+            class="depth-input"
+            @click="openDepthPicker('startDepth')"
           />
         </div>
         <div class="field half">
           <label>End Depth (m)</label>
           <input
-            v-model="currentEndDepth"
-            type="number"
-            step="0.1"
-            min="0"
-            placeholder="0.0"
+            type="text"
+            readonly
+            :value="formatDepthDisplay(currentEndDepth)"
+            placeholder="Tap to select"
+            class="depth-input"
+            @click="openDepthPicker('endDepth')"
           />
         </div>
       </div>
@@ -191,6 +193,15 @@
       @update:visible="pickerVisible = false"
       ref="pickerRef"
     />
+
+    <!-- ═══ Scroll Depth Picker Modal ═══ -->
+    <ScrollDepthPicker
+      :model-value="depthPickerValue"
+      :visible="depthPickerVisible"
+      :title="depthPickerTitle"
+      @update:model-value="onDepthConfirm"
+      @update:visible="depthPickerVisible = false"
+    />
   </div>
 </template>
 
@@ -201,6 +212,7 @@ import { appState, submitFormRows } from '../store/appState.js'
 import { dropdowns, hiddenItems } from '../store/dropdowns.js'
 import ScrollDatePicker from '../components/ScrollDatePicker.vue'
 import ScrollTimePicker from '../components/ScrollTimePicker.vue'
+import ScrollDepthPicker from '../components/ScrollDepthPicker.vue'
 import vSelect from 'vue-select'
 import 'vue-select/dist/vue-select.css'
 
@@ -413,6 +425,33 @@ function onPickerConfirm(displayValue) {
     appState[pickerTarget.value] = displayValue
   }
   pickerVisible.value = false
+}
+
+// ── Depth Picker ───────────────────────────────────────────────
+const depthPickerVisible = ref(false)
+const depthPickerTarget = ref('')
+const depthPickerValue = ref('')
+const depthPickerTitle = ref('')
+
+function openDepthPicker(target) {
+  const tab = TABS[activeTab.value]
+  const stateKey = target === 'startDepth' ? tab.startDepthKey : tab.endDepthKey
+  depthPickerTarget.value = stateKey
+  depthPickerValue.value = appState[stateKey] || ''
+  depthPickerTitle.value = target === 'startDepth' ? 'Start Depth' : 'End Depth'
+  depthPickerVisible.value = true
+}
+
+function onDepthConfirm(value) {
+  appState[depthPickerTarget.value] = value || '0.0'
+  depthPickerVisible.value = false
+}
+
+function formatDepthDisplay(val) {
+  if (val === undefined || val === null || val === '') return ''
+  const num = parseFloat(String(val))
+  if (isNaN(num)) return ''
+  return num.toFixed(1) + 'm'
 }
 
 // ── Navigation ────────────────────────────────────────────────
@@ -836,6 +875,22 @@ h2 {
   color: #94a3b8;
   font-weight: 400;
   font-size: 16px;
+}
+
+/* ── Depth input (readonly, tap to open picker) ── */
+.depth-input {
+  cursor: pointer;
+  caret-color: transparent;
+  color: #3b82f6 !important;
+  font-weight: 600;
+  text-align: center;
+  font-size: 14px !important;
+}
+
+.depth-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+  font-size: 14px;
 }
 
 /* ── Action bar ── */
