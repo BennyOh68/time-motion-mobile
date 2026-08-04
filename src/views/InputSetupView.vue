@@ -438,7 +438,7 @@ function openDepthPicker(target) {
   const stateKey = target === 'startDepth' ? tab.startDepthKey : tab.endDepthKey
   depthPickerTarget.value = stateKey
   depthPickerValue.value = appState[stateKey] || ''
-  depthPickerTitle.value = target === 'startDepth' ? 'Start Depth' : 'End Depth'
+  depthPickerTitle.value = target === 'startDepth' ? 'Start Depth (m)' : 'End Depth (m)'
   depthPickerVisible.value = true
 }
 
