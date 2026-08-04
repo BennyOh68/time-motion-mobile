@@ -24,9 +24,16 @@
 
     <!-- DONUT CHART -->
     <div v-if="chartReady" class="chart-container">
-      <Doughnut :data="chartData" :options="chartOptions" />
+      <Doughnut v-if="hasChartData" :data="chartData" :options="chartOptions" />
+      <p v-else class="empty-msg" style="padding: 12px 0;">Chart data is all zero — check category mapping.</p>
     </div>
     <p v-else-if="!loading && rows.length === 0" class="empty-msg">No data found in this tab.</p>
+
+    <!-- DEBUG: raw category values -->
+    <div v-if="uniqueCategories.length > 0" class="debug-bar">
+      <span class="debug-label">🔍 Raw categories in sheet:</span>
+      <code>{{ uniqueCategories.join(', ') }}</code>
+    </div>
 
     <!-- CATEGORY CARDS -->
     <div v-if="rows.length > 0" class="cards-grid">
@@ -133,6 +140,23 @@ const CATEGORY_CONFIG = [
   { name: 'Other Wait',                 color: '#94a3b8' },
 ]
 
+// Map short names from Google Sheets → display names in CATEGORY_CONFIG
+const CATEGORY_NORMALIZE_MAP = {
+  'preparation':            'Preparation Work',
+  'production':             'Production Work',
+  'waits':                  'Other Wait',
+  'wait':                   'Other Wait',
+  'safety':                 'Safety',
+  'rig maintenance':        'Rig Maintenance & Tool Damaged',
+  'rig maintenance & tool damaged': 'Rig Maintenance & Tool Damaged',
+}
+
+function normalizeCategory(raw) {
+  if (!raw) return ''
+  const key = raw.toLowerCase().trim()
+  return CATEGORY_NORMALIZE_MAP[key] || raw
+}
+
 const views = ['Daily', 'Weekly', 'Monthly']
 
 // ── State ──
@@ -191,7 +215,7 @@ function processRows() {
   let totalDepth = 0
 
   for (const row of rows.value) {
-    const cat = row.category || ''
+    const cat = normalizeCategory(row.category || '')
     if (!cat) continue
 
     const hours = timeToHours(row['time out']) - timeToHours(row['time in'])
@@ -227,6 +251,16 @@ const dailyProdHrs = computed(() => {
   const prod = catMap.get('Production Work')
   if (!prod || dates.size === 0) return 0
   return +(prod.totalHours / dates.size).toFixed(1)
+})
+
+// ── Computed: unique raw category values (debug) ──
+const uniqueCategories = computed(() => {
+  const seen = new Set()
+  for (const row of rows.value) {
+    const raw = (row.category || '').trim()
+    if (raw) seen.add(raw)
+  }
+  return [...seen].sort()
 })
 
 // ── Computed: categories with averages ──
@@ -325,7 +359,16 @@ const chartData = computed(() => {
   }
 })
 
-const chartReady = computed(() => rows.value.length > 0)
+const chartReady = computed(() => {
+  if (rows.value.length === 0) return false
+  // Show chart even when all values are zero — Chart.js renders an empty ring
+  return true
+})
+
+const hasChartData = computed(() => {
+  const cats = categories.value
+  return cats.some(c => c._hours > 0)
+})
 
 const chartOptions = {
   responsive: true,
@@ -600,5 +643,24 @@ h2 {
   color: #166534 !important;
   margin-top: 6px;
   margin-bottom: 0 !important;
+}
+
+/* ── Debug bar ── */
+.debug-bar {
+  background: #fefce8;
+  border: 1px solid #fde047;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 0.75rem;
+}
+.debug-label {
+  font-weight: 600;
+  color: #854d0e;
+  margin-right: 6px;
+}
+.debug-bar code {
+  color: #713f12;
+  word-break: break-all;
 }
 </style>
