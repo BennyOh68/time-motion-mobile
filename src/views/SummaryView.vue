@@ -38,13 +38,15 @@
           </thead>
           <tbody>
             <template v-for="item in groupedRows" :key="item.key">
-              <tr v-if="item.type === 'header'" class="group-header-row">
+              <tr v-if="item.type === 'header'" class="group-header-row" @click="toggleGroup(item.groupKey)">
                 <td :colspan="7" class="group-header-cell">
+                  <span class="group-chevron">{{ collapsedGroups.has(item.groupKey) ? '▶' : '▼' }}</span>
                   📍 {{ item.workType }} — {{ item.refPoint }}
+                  <span class="group-row-count">({{ item.rowCount }})</span>
                 </td>
               </tr>
               <tr
-                v-else
+                v-else-if="!collapsedGroups.has(item.headerKey)"
                 :class="{ 'row-selected': selectedIds.has(item.data.id) }"
               >
                 <td class="td-sn">{{ pad(item.sn) }}</td>
@@ -172,6 +174,20 @@ const allSelected = computed(() =>
   selectedIds.value.size === sortedRows.value.length
 )
 
+// ── Collapsible group state ──
+const collapsedGroups = ref(new Set())
+const lastGroupFingerprint = ref('')
+
+function toggleGroup(groupKey) {
+  const next = new Set(collapsedGroups.value)
+  if (next.has(groupKey)) {
+    next.delete(groupKey)
+  } else {
+    next.add(groupKey)
+  }
+  collapsedGroups.value = next
+}
+
 function toggleAll() {
   if (allSelected.value) {
     selectedIds.value = new Set()
@@ -214,19 +230,59 @@ const groupedRows = computed(() => {
   let lastRefPoint = null
   let sn = 0
 
+  // First pass: collect group keys
+  const groupKeys = []
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    // Insert group header when ref. point changes
     if (row.refPoint && row.refPoint !== lastRefPoint) {
+      const gk = 'hdr-' + row.refPoint + '-' + (row.workType || '')
+      groupKeys.push(gk)
+      lastRefPoint = row.refPoint
+    }
+  }
+
+  // Initialize collapsed once per unique group layout (avoids reactivity loop)
+  if (groupKeys.length > 0) {
+    const fingerprint = groupKeys.join('|')
+    if (fingerprint !== lastGroupFingerprint.value) {
+      lastGroupFingerprint.value = fingerprint
+      collapsedGroups.value = new Set(groupKeys.slice(0, -1))
+    }
+  }
+
+  // Second pass: build items with row counts
+  lastRefPoint = null
+  sn = 0
+  let rowCount = 0
+  let pendingHeader = null
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    if (row.refPoint && row.refPoint !== lastRefPoint) {
+      // Flush previous header with its row count
+      if (pendingHeader) {
+        pendingHeader.rowCount = rowCount
+        items.push(pendingHeader)
+      }
       const prefix = row.workType || ''
-      items.push({ type: 'header', refPoint: row.refPoint, workType: prefix, key: 'hdr-' + row.refPoint + '-' + prefix })
+      const gk = 'hdr-' + row.refPoint + '-' + prefix
+      pendingHeader = { type: 'header', refPoint: row.refPoint, workType: prefix, groupKey: gk, key: gk, rowCount: 0 }
       lastRefPoint = row.refPoint
       sn = 0
+      rowCount = 0
     }
     sn++
+    rowCount++
     const prevRow = i > 0 ? rows[i - 1] : null
-    items.push({ type: 'data', data: row, key: row.id, sn, prevRow })
+    const headerKey = pendingHeader ? pendingHeader.key : ''
+    items.push({ type: 'data', data: row, key: row.id, sn, prevRow, headerKey })
   }
+  // Flush final header
+  if (pendingHeader) {
+    pendingHeader.rowCount = rowCount
+    items.push(pendingHeader)
+  }
+
   return items
 })
 
@@ -598,6 +654,12 @@ td {
 }
 
 /* ── Group header row (ref. point separator) ── */
+.group-header-row {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .group-header-row td {
   padding: 8px 12px;
   background: #f0f9ff;
@@ -609,6 +671,20 @@ td {
   font-weight: 700;
   color: #0369a1;
   text-align: left;
+}
+
+.group-chevron {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 10px;
+  transition: transform 0.15s;
+}
+
+.group-row-count {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #64748b;
 }
 
 .col-sn {
