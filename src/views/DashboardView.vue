@@ -38,12 +38,6 @@
     </div>
     <p v-else-if="!loading && rows.length === 0" class="empty-msg">No data found in this tab.</p>
 
-    <!-- DEBUG: raw category values -->
-    <div v-if="uniqueCategories.length > 0" class="debug-bar">
-      <span class="debug-label">🔍 Raw categories in sheet:</span>
-      <code>{{ uniqueCategories.join(', ') }}</code>
-    </div>
-
     <!-- CATEGORY CARDS -->
     <div v-if="rows.length > 0" class="cards-grid">
       <div
@@ -394,14 +388,15 @@ const chartOptions = computed(() => {
     indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
-    aspectRatio: 10,
+    aspectRatio: 5,
     plugins: {
       legend: {
         position: 'bottom',
         labels: {
           padding: 12,
-          usePointStyle: true,
-          pointStyleWidth: 10,
+          usePointStyle: false,
+          boxWidth: 12,
+          boxHeight: 12,
           font: { size: 11 },
         },
       },
@@ -562,7 +557,7 @@ h2 {
 /* ── Chart ── */
 .chart-container {
   max-width: 100%;
-  height: 80px;
+  height: 160px;
   margin: 0 auto 16px;
 }
 
