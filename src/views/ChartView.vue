@@ -17,7 +17,7 @@
           <button class="nav-btn" :disabled="!filterDate" @click="nextDay">▶</button>
         </div>
         <button class="nav-btn nav-action" @click="router.push('/summary')">← Back</button>
-        <button class="nav-btn nav-action nav-next" @click="router.push('/export')">Export →</button>
+        <button class="nav-btn nav-action nav-next" @click="router.push('/export')">Next → Export</button>
       </div>
 
       <div class="chart-scroll-box">
