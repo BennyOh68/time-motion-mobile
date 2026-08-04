@@ -16,17 +16,14 @@
           <span class="date-label">{{ formattedDate }}</span>
           <button class="nav-btn" :disabled="!filterDate" @click="nextDay">▶</button>
         </div>
+        <button class="nav-btn nav-action" @click="router.push('/summary')">← Back</button>
+        <button class="nav-btn nav-action nav-next" @click="router.push('/export')">Export →</button>
       </div>
 
       <div class="chart-scroll-box">
         <div class="chart-canvas-view">
           <Scatter ref="scatterRef" :data="chartData" :options="chartOptions" />
         </div>
-      </div>
-
-      <div class="action-bar">
-        <button class="btn-outline" @click="router.push('/summary')">← Back</button>
-        <button class="btn-primary" @click="router.push('/export')">Next → Export</button>
       </div>
     </div>
   </div>
@@ -639,7 +636,7 @@ h2 {
 
 .chart-canvas-view {
   width: 100%;
-  height: calc(100dvh - 260px);
+  height: calc(100dvh - 210px);
   min-height: 350px;
   position: relative;
 }
@@ -689,32 +686,23 @@ h2 {
   text-align: center;
 }
 
-.action-bar {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.btn-primary,
-.btn-outline {
-  flex: 1;
-  padding: 14px;
-  border: none;
-  border-radius: 10px;
-  font-size: 16px;
+.nav-action {
+  width: auto;
+  padding: 0 12px;
+  font-size: 11px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
+  white-space: nowrap;
 }
 
-.btn-primary {
+.nav-action.nav-next {
   background: #3b82f6;
   color: #fff;
+  border-color: #3b82f6;
 }
-.btn-outline {
-  background: #fff;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+
+.nav-action.nav-next:hover {
+  background: #2563eb;
+  border-color: #2563eb;
 }
 
 @media (min-width: 800px) {
