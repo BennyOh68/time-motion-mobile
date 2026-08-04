@@ -567,9 +567,11 @@ onMounted(() => {
     .pop()
   if (maxDate) filterDate.value = maxDate
 
-  // Restore last-selected team filter if it still exists in available teams
+  // Default team filter: restore last-selected if still available, otherwise first team
   if (appState.chartFilterTeam && teams.value.includes(appState.chartFilterTeam)) {
     filterTeam.value = appState.chartFilterTeam
+  } else if (teams.value.length > 0) {
+    filterTeam.value = teams.value[0]
   }
 
   updateChart()
