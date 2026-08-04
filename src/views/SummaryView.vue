@@ -380,7 +380,7 @@ function openDepthPicker(row, field) {
   depthPickerRow.value = row
   depthPickerField.value = field
   depthPickerValue.value = row[field] || ''
-  depthPickerTitle.value = (row.activityName || '') + (field === 'startDepth' ? ' - start depth (m)' : ' - end depth (m)')
+  depthPickerTitle.value = (row.activityName || '') + (field === 'startDepth' ? ' - Start Depth (m)' : ' - End Depth (m)')
   // Find preceding row in sortedRows for copy-last button
   const idx = sortedRows.value.findIndex(r => r.id === row.id)
   if (idx > 0) {
