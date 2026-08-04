@@ -283,7 +283,7 @@ async function exportPNG() {
     const MARGIN      = 40    // left/right padding around chart
     const CHART_W     = 1600 - MARGIN * 2   // chart area within margins
     const CHART_H     = 900
-    const HEADER_H    = 100   // space for title + subtitle
+    const HEADER_H    = 150   // space for title + subtitle
     const COMPOSITE_W = 1600
     const COMPOSITE_H = CHART_H + HEADER_H + 50   // header + 50px bottom margin
 
@@ -386,12 +386,12 @@ async function exportPNG() {
     ctx.font = 'bold 28px system-ui, -apple-system, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('Time & Motion Chart', COMPOSITE_W / 2, 34)
+    ctx.fillText('Time & Motion Chart', COMPOSITE_W / 2, 84)
 
     // Secondary subtitle: Project / Rig / Date
     ctx.font = '16px system-ui, -apple-system, sans-serif'
     ctx.fillStyle = '#475569'
-    ctx.fillText(`${project}  /  ${rigValue}  /  ${dateValue}`, COMPOSITE_W / 2, 70)
+    ctx.fillText(`${project}  /  ${rigValue}  /  ${dateValue}`, COMPOSITE_W / 2, 120)
 
     // Draw chart below header with left/right margins
     ctx.drawImage(chartCanvas, MARGIN, HEADER_H)
