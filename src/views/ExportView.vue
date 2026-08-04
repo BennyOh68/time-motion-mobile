@@ -279,23 +279,26 @@ async function exportPNG() {
     const yMin = 0
     const yMax = Math.ceil(maxDepth) + 1
 
-    // ── 4. Canvas pixel dimensions (landscape 16:9) ───────────────
-    const CANVAS_W = 1600
-    const CANVAS_H = 900
+    // ── 4. Canvas pixel dimensions ──────────────────────────────────
+    const CHART_W     = 1600
+    const CHART_H     = 900
+    const HEADER_H    = 100   // space for title + subtitle
+    const COMPOSITE_W = CHART_W
+    const COMPOSITE_H = CHART_H + HEADER_H
 
     // ── 5. Build chart data & annotations ─────────────────────────
     const chartData   = buildChartDataForExport(filteredRows)
     const annotations = buildAnnotationsForExport(
-      filteredRows, xMin, xMax, yMin, yMax, CANVAS_W, CANVAS_H,
+      filteredRows, xMin, xMax, yMin, yMax, CHART_W, CHART_H,
     )
 
-    // ── 6. Create off-screen canvas ───────────────────────────────
+    // ── 6. Create off-screen chart canvas ─────────────────────────
     containerEl = document.createElement('div')
     containerEl.style.cssText = 'position:fixed;left:-9999px;top:-9999px;'
-    const canvasEl = document.createElement('canvas')
-    canvasEl.width  = CANVAS_W
-    canvasEl.height = CANVAS_H
-    containerEl.appendChild(canvasEl)
+    const chartCanvas = document.createElement('canvas')
+    chartCanvas.width  = CHART_W
+    chartCanvas.height = CHART_H
+    containerEl.appendChild(chartCanvas)
     document.body.appendChild(containerEl)
 
     // ── 7. Import Chart.js + annotation plugin ────────────────────
@@ -310,7 +313,7 @@ async function exportPNG() {
     ChartJS.register(annotationPlugin)
 
     // ── 8. Instantiate chart at landscape pixel dimensions ────────
-    chartInstance = new ChartJS(canvasEl, {
+    chartInstance = new ChartJS(chartCanvas, {
       type: 'scatter',
       data: chartData,
       options: {
@@ -367,18 +370,43 @@ async function exportPNG() {
     await new Promise(resolve => requestAnimationFrame(resolve))
     await new Promise(resolve => requestAnimationFrame(resolve))
 
-    // ── 10. Export canvas to PNG and download ─────────────────────
-    const pngDataUrl = canvasEl.toDataURL('image/png')
-    const link = document.createElement('a')
-    link.download = filename
-    link.href = pngDataUrl
-    link.click()
-
-    // ── 11. Clean up off-screen DOM ───────────────────────────────
+    // ── 10. Clean up Chart.js instance & off-screen DOM ───────────
     chartInstance.destroy()
     chartInstance = null
     document.body.removeChild(containerEl)
     containerEl = null
+
+    // ── 11. Composite canvas: white bg + header text + chart ──────
+    const compCanvas = document.createElement('canvas')
+    compCanvas.width  = COMPOSITE_W
+    compCanvas.height = COMPOSITE_H
+    const ctx = compCanvas.getContext('2d')
+
+    // White background
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, COMPOSITE_W, COMPOSITE_H)
+
+    // Primary title
+    ctx.fillStyle = '#1e293b'
+    ctx.font = 'bold 28px system-ui, -apple-system, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('Time & Motion Chart', COMPOSITE_W / 2, 34)
+
+    // Secondary subtitle: Project / Rig / Date
+    ctx.font = '16px system-ui, -apple-system, sans-serif'
+    ctx.fillStyle = '#475569'
+    ctx.fillText(`${project}  /  ${rigValue}  /  ${dateValue}`, COMPOSITE_W / 2, 70)
+
+    // Draw chart below header
+    ctx.drawImage(chartCanvas, 0, HEADER_H)
+
+    // ── 12. Export composite canvas to PNG and download ───────────
+    const pngDataUrl = compCanvas.toDataURL('image/png')
+    const link = document.createElement('a')
+    link.download = filename
+    link.href = pngDataUrl
+    link.click()
   } catch (e) {
     console.error('PNG export failed:', e)
     alert('Failed to export PNG: ' + e.message)
