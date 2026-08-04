@@ -89,24 +89,17 @@
 
       <div class="proj-grid">
         <div class="proj-item">
-          <label>Daily Prod Avg</label>
+          <label>Average Daily Production Hours</label>
           <span class="proj-value">{{ dailyProdHrs }} h/day</span>
         </div>
         <div class="proj-item">
-          <label>Prod Rate</label>
-          <input
-            v-model.number="prodRate"
-            type="number"
-            step="0.1"
-            min="0"
-            class="proj-input"
-            placeholder="m/h"
-          />
+          <label>Avg Daily Grouting</label>
+          <span class="proj-value">{{ avgDailyGrouting }} m/day</span>
         </div>
         <div class="proj-item">
-          <label>Total Required</label>
+          <label>Total Grouting of Project (m)</label>
           <input
-            v-model.number="totalRequired"
+            v-model.number="totalGroutingOfProject"
             type="number"
             step="0.1"
             min="0"
@@ -115,27 +108,43 @@
           />
         </div>
         <div class="proj-item">
-          <label>Already Drilled</label>
-          <span class="proj-value">{{ alreadyDrilled }} m</span>
+          <label>Total Grouting Done (m)</label>
+          <span class="proj-value">{{ totalGroutingDone }} m</span>
+        </div>
+        <div class="proj-item">
+          <label>Total Balance Grouting (m)</label>
+          <span class="proj-value">{{ balanceGrouting }} m</span>
+        </div>
+        <div class="proj-item">
+          <label>Workdays for Balance to Go</label>
+          <span class="proj-value">{{ workdaysForBalance }} days</span>
+        </div>
+        <div class="proj-item">
+          <label>Initial Date</label>
+          <button class="date-trigger-btn" @click="showDatePicker = true">
+            {{ initialDate || 'Select date' }}
+          </button>
         </div>
       </div>
 
-      <div v-if="projectedEnd" class="proj-result">
-        <p>Remaining: <strong>{{ remainingMetres }} m</strong></p>
-        <p>Days needed: <strong>{{ daysNeeded }}</strong></p>
-        <p class="proj-end">→ Projected end: <strong>{{ projectedEnd }}</strong></p>
+      <div v-if="endDate" class="proj-result">
+        <p class="proj-end">→ Projected end: <strong>{{ endDate }}</strong></p>
       </div>
     </div>
+
+    <!-- Scroll Date Picker -->
+    <ScrollDatePicker v-model="initialDate" v-model:visible="showDatePicker" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { readSheetData, listSheetTabs } from '../lib/googleSheets.js'
 import { appState } from '../store/appState.js'
+import ScrollDatePicker from '../components/ScrollDatePicker.vue'
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels)
 
@@ -187,8 +196,9 @@ const errorMsg = ref('')
 const viewMode = ref('Daily')
 
 // Projection inputs
-const prodRate = ref(0)
-const totalRequired = ref(0)
+const totalGroutingOfProject = ref(0)
+const initialDate = ref(formatDate(new Date()))
+const showDatePicker = ref(false)
 
 // ── Parse time "HH:MM" → decimal hours ──
 function timeToHours(str) {
@@ -272,16 +282,6 @@ const dailyProdHrs = computed(() => {
   return +(prod.totalHours / dates.size).toFixed(1)
 })
 
-// ── Computed: unique raw category values (debug) ──
-const uniqueCategories = computed(() => {
-  const seen = new Set()
-  for (const row of rows.value) {
-    const raw = (row.category || '').trim()
-    if (raw) seen.add(raw)
-  }
-  return [...seen].sort()
-})
-
 // ── Computed: categories with averages ──
 const categories = computed(() => {
   const { catMap, dates, weeks, months } = processRows()
@@ -310,7 +310,7 @@ const categories = computed(() => {
   })
 })
 
-// ── Computed: report total hours (sum of avgHours across categories for the Total row) ──
+// ── Computed: report total hours ──
 const reportTotalHours = computed(() => {
   const { catMap, dates, weeks, months } = processRows()
   const totalHoursAll = [...catMap.values()].reduce((s, c) => s + c.totalHours, 0)
@@ -338,43 +338,62 @@ const totals = computed(() => {
   }
 })
 
-// ── Computed: already drilled depth ──
-const alreadyDrilled = computed(() => {
-  const { totalDepth } = processRows()
-  return +totalDepth.toFixed(1)
-})
-
-// ── Computed: end date projection ──
-const projectedEnd = computed(() => {
-  const remaining = totalRequired.value - alreadyDrilled.value
-  if (remaining <= 0 || !prodRate.value || !dailyProdHrs.value) return null
-
-  const dailyProdMetres = prodRate.value * dailyProdHrs.value
-  if (dailyProdMetres <= 0) return null
-
-  const workDaysNeeded = Math.ceil(remaining / dailyProdMetres)
-
-  // Calculate calendar days (skip Sundays)
-  let d = new Date()
-  let workDays = 0
-  while (workDays < workDaysNeeded) {
-    d.setDate(d.getDate() + 1)
-    // Sunday = 0 in JS getDay()
-    if (d.getDay() !== 0) workDays++
+// ── Computed: total grouting done (sum of end_depth - start_depth across all Production rows) ──
+const totalGroutingDone = computed(() => {
+  let total = 0
+  for (const row of rows.value) {
+    const cat = normalizeCategory(row.category || '')
+    if (cat !== 'Production Work') continue
+    const start = parseFloat(row['start depth'] || row['start_depth'] || '0')
+    const end = parseFloat(row['end depth'] || row['end_depth'] || '0')
+    if (!isNaN(start) && !isNaN(end) && end > start) {
+      total += (end - start)
+    }
   }
-  return formatDate(d)
+  return +total.toFixed(1)
 })
 
-const remainingMetres = computed(() => {
-  const r = totalRequired.value - alreadyDrilled.value
-  return r > 0 ? +r.toFixed(1) : 0
+// ── Computed: average daily grouting (m/day) ──
+const avgDailyGrouting = computed(() => {
+  const { dates } = processRows()
+  if (dates.size === 0) return 0
+  return +(totalGroutingDone.value / dates.size).toFixed(1)
 })
 
-const daysNeeded = computed(() => {
-  const remaining = totalRequired.value - alreadyDrilled.value
-  if (remaining <= 0 || !prodRate.value || !dailyProdHrs.value) return 0
-  const dailyProdMetres = prodRate.value * dailyProdHrs.value
-  return dailyProdMetres > 0 ? Math.ceil(remaining / dailyProdMetres) : 0
+// ── Computed: balance grouting ──
+const balanceGrouting = computed(() => {
+  const bal = totalGroutingOfProject.value - totalGroutingDone.value
+  return bal > 0 ? +bal.toFixed(1) : 0
+})
+
+// ── Computed: workdays for balance to go ──
+const workdaysForBalance = computed(() => {
+  if (avgDailyGrouting.value <= 0 || balanceGrouting.value <= 0) return 0
+  return Math.ceil(balanceGrouting.value / avgDailyGrouting.value)
+})
+
+// ── Computed: calendar days needed (add 1 day per 6 workdays for Sunday) ──
+const calendarDaysNeeded = computed(() => {
+  const wd = workdaysForBalance.value
+  if (wd <= 0) return 0
+  return wd + Math.floor(wd / 6)
+})
+
+// ── Computed: projected end date ──
+const endDate = computed(() => {
+  if (!initialDate.value || calendarDaysNeeded.value <= 0) return null
+  const d = parseDate(initialDate.value)
+  if (!d) return null
+
+  // Advance by calendarDaysNeeded, skipping Sundays
+  let remaining = workdaysForBalance.value
+  let cursor = new Date(d)
+  while (remaining > 0) {
+    cursor.setDate(cursor.getDate() + 1)
+    // Sunday = 0
+    if (cursor.getDay() !== 0) remaining--
+  }
+  return formatDate(cursor)
 })
 
 // ── Chart data (horizontal stacked bar) ──
@@ -562,7 +581,7 @@ h2 {
 
 /* ── Chart ── */
 .chart-container {
-  max-width: 100%;
+  max-width: 70%;
   height: 160px;
   margin: 0 auto 16px;
 }
@@ -714,6 +733,22 @@ h2 {
   outline: none;
   border-color: #6366f1;
   box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
+}
+.date-trigger-btn {
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #f8fafc;
+  color: #1e293b;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+.date-trigger-btn:hover {
+  border-color: #6366f1;
+  background: #f1f5f9;
 }
 .proj-result {
   background: #f0fdf4;
