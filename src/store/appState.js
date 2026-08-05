@@ -130,10 +130,11 @@ const SAFETY_KEYWORDS = [
   'safety stand-down', 'safety standdown', 'safety stand down',
   'lockout tagout', 'loto', 'confined space',
   'respirator', 'ppe inspection', 'harness inspection',
+  'safety',
 ]
 
 const QC_KEYWORDS = [
-  'pre-grouting inspection', 'pgi',
+  'pre-grouting inspection',
   'post-grouting inspection',
   're/rto inspection', 're inspection', 'rto inspection',
   'quality check', 'quality control', 'qc inspection', 'qc check',
