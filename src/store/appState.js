@@ -116,10 +116,10 @@ export function resetForm() {
   appState.waitEndDepth = '0.0'
 }
 
-// ── Safety activity keywords (case-insensitive match) ─────────────────────
+// ── Activity auto-classification keywords (case-insensitive) ──────────────
 const SAFETY_KEYWORDS = [
   'toolbox', 'tbm', 'safety briefing', 'safety meeting', 'safety talk',
-  'safety walk', 'safety audit', 'safety inspection', 'safety drill',
+  'safety walk', 'safety audit', 'safety drill',
   'hse', 'hsse', 'health and safety', 'occupational safety',
   'ptw', 'permit to work', 'work permit',
   'jsa', 'job safety analysis', 'job hazard analysis', 'jha',
@@ -132,10 +132,22 @@ const SAFETY_KEYWORDS = [
   'respirator', 'ppe inspection', 'harness inspection',
 ]
 
-function classifySafety(activityName) {
-  if (!activityName) return false
+const QC_KEYWORDS = [
+  'pre-grouting inspection', 'pgi',
+  'post-grouting inspection',
+  're/rto inspection', 're inspection', 'rto inspection',
+  'quality check', 'quality control', 'qc inspection', 'qc check',
+  'grouting inspection', 'pile inspection', 'concrete inspection',
+  'ndt', 'non-destructive', 'ultrasonic test', 'integrity test',
+  'material inspection', 'material testing',
+]
+
+function classifyActivity(activityName) {
+  if (!activityName) return null
   const lower = activityName.toLowerCase().trim()
-  return SAFETY_KEYWORDS.some(kw => lower.includes(kw))
+  if (SAFETY_KEYWORDS.some(kw => lower.includes(kw))) return 'Safety'
+  if (QC_KEYWORDS.some(kw => lower.includes(kw))) return 'QC'
+  return null
 }
 
 /**
@@ -174,10 +186,9 @@ export function submitFormRows() {
 
   for (const seg of segments) {
     if (seg.activity && seg.timeIn && seg.timeOut) {
-      // Auto-categorize safety activities from the Waits section
-      const category = (seg.category === 'Waits' && classifySafety(seg.activity))
-        ? 'Safety'
-        : seg.category
+      // Auto-classify across ALL segments — Safety/QC override the form category
+      const override = classifyActivity(seg.activity)
+      const category = override || seg.category
 
       rows.push({
         id: crypto.randomUUID(),
