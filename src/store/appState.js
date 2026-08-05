@@ -142,7 +142,7 @@ const QC_KEYWORDS = [
   'material inspection', 'material testing',
 ]
 
-function classifyActivity(activityName) {
+export function classifyActivity(activityName) {
   if (!activityName) return null
   const lower = activityName.toLowerCase().trim()
   if (SAFETY_KEYWORDS.some(kw => lower.includes(kw))) return 'Safety'

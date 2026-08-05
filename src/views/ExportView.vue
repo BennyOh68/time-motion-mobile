@@ -55,7 +55,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { appState } from '../store/appState.js'
+import { appState, classifyActivity } from '../store/appState.js'
 import {
   Chart as ChartJS,
   LinearScale,
@@ -96,21 +96,27 @@ const EXPORT_HEADERS = [
 ]
 
 function mapExportRows(rows) {
-  return rows.map(row => ({
-    'date': row.logDate || '',
-    'project': row.projectName || '',
-    'team/rig': row.teamRig || '',
-    'work type': row.workType || '',
-    'ref. point': row.refPoint || '',
-    'category': row.category || '',
-    'activity': row.activityName || '',
-    'time in': row.timeIn || '',
-    'time out': row.timeOut || '',
-    'start depth': row.startDepth ?? '',
-    'end depth': row.endDepth ?? '',
-    'duplicate_flag': '',
-    'synced_by': appState.user?.email || '',
-  }))
+  return rows.map(row => {
+    // Re-classify at export time — fixes old rows that were created
+    // before the auto-classification logic was added to submitFormRows()
+    const override = classifyActivity(row.activityName)
+    const category = override || row.category || ''
+    return {
+      'date': row.logDate || '',
+      'project': row.projectName || '',
+      'team/rig': row.teamRig || '',
+      'work type': row.workType || '',
+      'ref. point': row.refPoint || '',
+      'category': category,
+      'activity': row.activityName || '',
+      'time in': row.timeIn || '',
+      'time out': row.timeOut || '',
+      'start depth': row.startDepth ?? '',
+      'end depth': row.endDepth ?? '',
+      'duplicate_flag': '',
+      'synced_by': appState.user?.email || '',
+    }
+  })
 }
 
 // ── CSV Export ──
