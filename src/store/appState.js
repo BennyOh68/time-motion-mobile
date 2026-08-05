@@ -116,6 +116,28 @@ export function resetForm() {
   appState.waitEndDepth = '0.0'
 }
 
+// ── Safety activity keywords (case-insensitive match) ─────────────────────
+const SAFETY_KEYWORDS = [
+  'toolbox', 'tbm', 'safety briefing', 'safety meeting', 'safety talk',
+  'safety walk', 'safety audit', 'safety inspection', 'safety drill',
+  'hse', 'hsse', 'health and safety', 'occupational safety',
+  'ptw', 'permit to work', 'work permit',
+  'jsa', 'job safety analysis', 'job hazard analysis', 'jha',
+  'risk assessment', 'risk analysis', 'hazard identification', 'hazid',
+  'emergency drill', 'fire drill', 'first aid', 'first-aid',
+  'incident', 'accident report', 'near miss',
+  'pre-start safety', 'prestart safety', 'pre start safety',
+  'safety stand-down', 'safety standdown', 'safety stand down',
+  'lockout tagout', 'loto', 'confined space',
+  'respirator', 'ppe inspection', 'harness inspection',
+]
+
+function classifySafety(activityName) {
+  if (!activityName) return false
+  const lower = activityName.toLowerCase().trim()
+  return SAFETY_KEYWORDS.some(kw => lower.includes(kw))
+}
+
 /**
  * Push current form entries as a row into logRows, then reset form.
  * Returns true if at least one segment was populated.
@@ -152,9 +174,14 @@ export function submitFormRows() {
 
   for (const seg of segments) {
     if (seg.activity && seg.timeIn && seg.timeOut) {
+      // Auto-categorize safety activities from the Waits section
+      const category = (seg.category === 'Waits' && classifySafety(seg.activity))
+        ? 'Safety'
+        : seg.category
+
       rows.push({
         id: crypto.randomUUID(),
-        category: seg.category,
+        category,
         activityName: seg.activity,
         timeIn: seg.timeIn,
         timeOut: seg.timeOut,
