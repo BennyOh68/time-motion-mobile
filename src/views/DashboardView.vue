@@ -147,6 +147,7 @@ const CATEGORY_CONFIG = [
   { name: 'Preparation Work',           color: '#3b82f6' },
   { name: 'Production Work',            color: '#10b981' },
   { name: 'Safety',                     color: '#f59e0b' },
+  { name: 'QA/QC',                      color: '#8b5cf6' },
   { name: 'Rig Maintenance & Tool Damaged', color: '#ef4444' },
   { name: 'Other Wait',                 color: '#94a3b8' },
 ]
@@ -158,6 +159,7 @@ const CATEGORY_NORMALIZE_MAP = {
   'waits':                  'Other Wait',
   'wait':                   'Other Wait',
   'safety':                 'Safety',
+  'qc':                     'QA/QC',
   'rig maintenance':        'Rig Maintenance & Tool Damaged',
   'rig maintenance & tool damaged': 'Rig Maintenance & Tool Damaged',
 }
