@@ -568,7 +568,7 @@ h2 {
 .chart-container {
   height: 160px;
   margin: 0 0 16px;
-  background: #e2e8f0;
+  background: #475569;
   border-radius: 8px;
   padding: 8px 8px 0;
 }
