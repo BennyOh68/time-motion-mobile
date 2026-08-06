@@ -214,13 +214,10 @@ function deleteSelected() {
   selectedIds.value = new Set()
 }
 
-// ── Sort ──
+// ── Stable order (insertion order, no-sort) ──
+// Rows keep their original sequence — editing timeIn/timeOut never re-ranks.
 const sortedRows = computed(() => {
-  return [...appState.logRows].sort((a, b) => {
-    const ta = a.timeIn || '99:99'
-    const tb = b.timeIn || '99:99'
-    return ta.localeCompare(tb)
-  })
+  return [...appState.logRows]
 })
 
 // ── Grouped rows with ref. point headers ──
