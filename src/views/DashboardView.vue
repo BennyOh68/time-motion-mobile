@@ -435,9 +435,11 @@ const chartOptions = computed(() => {
         stacked: true,
         ticks: {
           callback(val) { return val + ' h' },
+          color: '#fff',
           font: { size: 10 },
         },
         grid: { display: false },
+        border: { color: '#fff' },
       },
       y: {
         stacked: true,
