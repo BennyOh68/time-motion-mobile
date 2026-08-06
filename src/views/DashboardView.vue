@@ -566,9 +566,8 @@ h2 {
 
 /* ── Chart ── */
 .chart-container {
-  max-width: 70%;
   height: 160px;
-  margin: 0 auto 16px;
+  margin: 0 0 16px;
   background: #e2e8f0;
   border-radius: 8px;
   padding: 8px 8px 0;
