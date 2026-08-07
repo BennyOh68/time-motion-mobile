@@ -333,6 +333,7 @@ async function exportPNG() {
         plugins: {
           legend: { display: false },
           tooltip: { enabled: false },
+          datalabels: { display: false },
           annotation: { annotations },
         },
         scales: {
@@ -754,6 +755,7 @@ async function exportPDF() {
         plugins: {
           legend: { display: false },
           tooltip: { enabled: false },
+          datalabels: { display: false },
           annotation: { annotations },
         },
         scales: {
