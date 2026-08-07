@@ -119,11 +119,19 @@
       <button class="scroll-arrow" @pointerdown.prevent="startScroll(150)" @pointerup="stopScroll" @pointerleave="stopScroll" aria-label="Scroll right">▶</button>
     </div>
 
-    <!-- Delete button — appears when any rows are selected -->
-    <div v-if="someSelected" class="delete-bar">
-      <button class="btn-delete" @click="deleteSelected">
-        🗑 {{ allSelected ? 'Delete ALL' : `Delete Selected (${selectedIds.size})` }}
-      </button>
+    <!-- Action bar: appears when any rows are selected -->
+    <div v-if="someSelected" class="selection-bar">
+      <!-- Only one row selected: split layout with delete + insert -->
+      <template v-if="selectedIds.size === 1">
+        <button class="btn-delete" @click="deleteSelected">🗑 Delete Row</button>
+        <button class="btn-insert" @click="insertRowBelow">➕ Insert Row Below</button>
+      </template>
+      <!-- Multiple rows selected: full-width delete only -->
+      <template v-else>
+        <button class="btn-delete btn-delete-full" @click="deleteSelected">
+          🗑 {{ allSelected ? 'Delete ALL' : `Delete Selected (${selectedIds.size})` }}
+        </button>
+      </template>
     </div>
 
     <div class="action-bar">
@@ -211,6 +219,39 @@ function deleteSelected() {
   const deletedRows = appState.logRows.filter(r => ids.has(r.id))
   lastEditSnapshot.value = { type: 'delete', deletedRows }
   appState.logRows = appState.logRows.filter(r => !ids.has(r.id))
+  selectedIds.value = new Set()
+}
+
+function insertRowBelow() {
+  // Only valid when exactly one row is selected
+  if (selectedIds.value.size !== 1) return
+  const [selectedId] = selectedIds.value
+  const idx = appState.logRows.findIndex(r => r.id === selectedId)
+  if (idx === -1) return
+
+  const sourceRow = appState.logRows[idx]
+  const newRow = {
+    id: crypto.randomUUID(),
+    projectName: sourceRow.projectName || '',
+    teamRig: sourceRow.teamRig || '',
+    workType: sourceRow.workType || '',
+    refPoint: sourceRow.refPoint || '',
+    logDate: sourceRow.logDate || '',
+    activityName: '',
+    category: '',
+    timeIn: '',
+    timeOut: '',
+    startDepth: '',
+    endDepth: '',
+  }
+
+  // Insert directly after the source row
+  appState.logRows.splice(idx + 1, 0, newRow)
+
+  // Record snapshot for undo
+  lastEditSnapshot.value = { type: 'insert', insertedId: newRow.id }
+
+  // Clear selection
   selectedIds.value = new Set()
 }
 
@@ -391,8 +432,11 @@ function undoLastEdit() {
     snap.row[snap.field] = snap.oldValue
   } else if (snap.type === 'delete') {
     // Re-insert deleted rows, maintaining original order by timeIn
-    const restoredIds = new Set(snap.deletedRows.map(r => r.id))
     appState.logRows = [...appState.logRows, ...snap.deletedRows]
+    selectedIds.value = new Set()
+  } else if (snap.type === 'insert') {
+    // Remove the inserted row
+    appState.logRows = appState.logRows.filter(r => r.id !== snap.insertedId)
     selectedIds.value = new Set()
   }
   lastEditSnapshot.value = null
@@ -839,16 +883,17 @@ td {
   cursor: grabbing;
 }
 
-/* ── Delete bar ── */
-.delete-bar {
+/* ── Selection action bar ── */
+.selection-bar {
+  display: flex;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
-.btn-delete {
-  width: 100%;
+.btn-delete,
+.btn-insert {
+  flex: 1;
   padding: 14px;
-  background: #dc2626;
-  color: #fff;
   border: none;
   border-radius: 10px;
   font-size: 16px;
@@ -857,8 +902,27 @@ td {
   transition: background 0.15s;
 }
 
+.btn-delete {
+  background: #dc2626;
+  color: #fff;
+}
+
 .btn-delete:hover {
   background: #b91c1c;
+}
+
+.btn-delete-full {
+  flex: 1;
+  /* full width when multiple rows selected */
+}
+
+.btn-insert {
+  background: #16a34a;
+  color: #fff;
+}
+
+.btn-insert:hover {
+  background: #15803d;
 }
 
 /* ── Action bar ── */
