@@ -216,8 +216,15 @@ function toggleRow(id) {
 
 function deleteSelected() {
   const ids = selectedIds.value
-  const deletedRows = appState.logRows.filter(r => ids.has(r.id))
-  lastEditSnapshot.value = { type: 'delete', deletedRows }
+  const deletedEntries = []
+  // Capture each deleted row with its original index
+  for (let i = 0; i < appState.logRows.length; i++) {
+    const r = appState.logRows[i]
+    if (ids.has(r.id)) {
+      deletedEntries.push({ row: r, originalIndex: i })
+    }
+  }
+  lastEditSnapshot.value = { type: 'delete', deletedEntries }
   appState.logRows = appState.logRows.filter(r => !ids.has(r.id))
   selectedIds.value = new Set()
 }
@@ -431,8 +438,11 @@ function undoLastEdit() {
   if (snap.type === 'edit') {
     snap.row[snap.field] = snap.oldValue
   } else if (snap.type === 'delete') {
-    // Re-insert deleted rows, maintaining original order by timeIn
-    appState.logRows = [...appState.logRows, ...snap.deletedRows]
+    // Re-insert deleted rows at their original indices (last-to-first to preserve positions)
+    const restored = [...snap.deletedEntries].sort((a, b) => b.originalIndex - a.originalIndex)
+    for (const { row, originalIndex } of restored) {
+      appState.logRows.splice(originalIndex, 0, row)
+    }
     selectedIds.value = new Set()
   } else if (snap.type === 'insert') {
     // Remove the inserted row
