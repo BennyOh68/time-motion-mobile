@@ -380,6 +380,9 @@ const chartOptions = computed(() => {
       legend: {
         display: false, // we use custom legend
       },
+      datalabels: {
+        display: false, // suppress automatic point labels from globally-registered plugin
+      },
       zoom: {
         pan: {
           enabled: true,
