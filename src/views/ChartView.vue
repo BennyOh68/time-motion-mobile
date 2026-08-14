@@ -605,6 +605,17 @@ watch(filterTeam, (val) => {
 .chart-page {
   max-width: 100%;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 52px);
+  min-height: 0;
+}
+
+.chart-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 h2 {
@@ -650,7 +661,10 @@ h2 {
 
 /* Chart scroll */
 .chart-scroll-box {
+  flex: 1;
+  min-height: 0;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   border-radius: 12px;
   background: #fff;
@@ -660,8 +674,8 @@ h2 {
 
 .chart-canvas-view {
   width: 100%;
-  height: calc(100dvh - 210px);
-  min-height: 350px;
+  height: 100%;
+  min-height: 240px;
   position: relative;
 }
 
@@ -743,8 +757,7 @@ h2 {
 
 @media (min-width: 800px) {
   .chart-canvas-view {
-    height: calc(100dvh - 220px);
-    min-height: 450px;
+    min-height: 260px;
   }
 }
 
@@ -763,8 +776,8 @@ h2 {
   }
 
   .chart-canvas-view {
-    height: calc(100dvh - 180px);
-    min-height: 400px;
+    height: 100%;
+    min-height: 220px;
   }
 }
 </style>
