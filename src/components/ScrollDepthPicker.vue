@@ -106,7 +106,6 @@ function applyCopyValue() {
 const CYCLE_COUNT = 30 // total cycles of 0-9
 const MID_CYCLE = Math.floor(CYCLE_COUNT / 2) // = 15, the "home" cycle
 const EDGE_CYCLES = 3 // reset when within this many cycles of either edge
-const ITEM_HEIGHT = 52 // approximate px height per scroll-item
 
 // Generate a long flat array of 300 items (30 cycles × 10 digits)
 const drumArray = Array.from({ length: CYCLE_COUNT * 10 }, (_, i) => i)
@@ -146,6 +145,15 @@ function indexFor(digit, cycle) {
   return cycle * 10 + parseInt(digit, 10)
 }
 
+/** Exact scrollTop that centers the item at the given drum index, using real DOM geometry */
+function centerTargetFor(trackEl, idx) {
+  if (!trackEl) return 0
+  const items = trackEl.querySelectorAll('.scroll-item')
+  const item = items[idx]
+  if (!item) return 0
+  return item.offsetTop - trackEl.clientHeight / 2 + item.offsetHeight / 2
+}
+
 /** Find the closest item index (not digit) to the center of a track */
 function getClosestIndex(trackEl) {
   if (!trackEl) return null
@@ -181,9 +189,8 @@ function checkAndReset(trackEl, cycleRef, digitRef, resetFlag) {
     resetFlag.value = true
     const newIdx = indexFor(digit, MID_CYCLE)
     cycleRef.value = MID_CYCLE
-    // Calculate scrollTop to position the item at center
-    const targetScrollTop = newIdx * ITEM_HEIGHT - trackEl.clientHeight / 2 + ITEM_HEIGHT / 2
-    trackEl.scrollTop = targetScrollTop
+    // Calculate scrollTop from real item geometry so the jump lands exactly on-center
+    trackEl.scrollTop = centerTargetFor(trackEl, newIdx)
     // Reset flag after a tick so subsequent scroll events are processed normally
     nextTick(() => {
       resetFlag.value = false
@@ -221,26 +228,29 @@ function onDecScroll() {
 // ── Click-to-select (snaps to that index) ──
 function selectTensByIndex(idx) {
   selectedTens.value = String(idx % 10)
+  tensCycle.value = Math.floor(idx / 10)
+  clearTimeout(tensTimer) // drop any stale scroll-debounce so it can't overwrite the click
   const el = tensTrackRef.value
   if (!el) return
-  const targetScrollTop = idx * ITEM_HEIGHT - el.clientHeight / 2 + ITEM_HEIGHT / 2
-  el.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+  el.scrollTo({ top: centerTargetFor(el, idx), behavior: 'smooth' })
 }
 
 function selectUnitsByIndex(idx) {
   selectedUnits.value = String(idx % 10)
+  unitsCycle.value = Math.floor(idx / 10)
+  clearTimeout(unitsTimer)
   const el = unitsTrackRef.value
   if (!el) return
-  const targetScrollTop = idx * ITEM_HEIGHT - el.clientHeight / 2 + ITEM_HEIGHT / 2
-  el.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+  el.scrollTo({ top: centerTargetFor(el, idx), behavior: 'smooth' })
 }
 
 function selectDecimalByIndex(idx) {
   selectedDecimal.value = String(idx % 10)
+  decCycle.value = Math.floor(idx / 10)
+  clearTimeout(decTimer)
   const el = decTrackRef.value
   if (!el) return
-  const targetScrollTop = idx * ITEM_HEIGHT - el.clientHeight / 2 + ITEM_HEIGHT / 2
-  el.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+  el.scrollTo({ top: centerTargetFor(el, idx), behavior: 'smooth' })
 }
 
 // ── Initial scroll to selected digit in middle cycle ──
