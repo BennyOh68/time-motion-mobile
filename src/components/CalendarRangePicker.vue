@@ -45,7 +45,7 @@
           </div>
         </div>
 
-        <!-- Footer: Start Date stacked above End Date -->
+        <!-- Footer: Start Date above End Date, with day count -->
         <div class="crp-footer">
           <div class="crp-range-row">
             <span class="crp-range-label">Start Date</span>
@@ -54,6 +54,10 @@
           <div class="crp-range-row">
             <span class="crp-range-label">End Date</span>
             <span class="crp-range-value" :class="{ empty: !endDate }">{{ endDisplay }}</span>
+          </div>
+          <div class="crp-range-row day-count-row">
+            <span class="crp-range-label">Number of Day</span>
+            <span class="crp-range-value" :class="{ empty: !dayCount }">{{ dayCountText }}</span>
           </div>
         </div>
       </div>
@@ -241,6 +245,14 @@ function formatLong(d) {
 }
 const startDisplay = computed(() => (startDate.value ? formatLong(startDate.value) : '—'))
 const endDisplay = computed(() => (endDate.value ? formatLong(endDate.value) : '—'))
+
+// Number of days in the selected range (inclusive of both start and end)
+const dayCount = computed(() => {
+  if (!startDate.value || !endDate.value) return 0
+  const diff = startOfDay(endDate.value) - startOfDay(startDate.value)
+  return Math.round(diff / 86400000) + 1
+})
+const dayCountText = computed(() => (dayCount.value > 0 ? `${dayCount.value} Day${dayCount.value > 1 ? 's' : ''}` : '—'))
 
 // ── Month / year navigation ──
 function prevMonth() {
@@ -510,6 +522,14 @@ function onCancel() {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+}
+.crp-range-row.day-count-row {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed #e5e5ea;
+}
+.crp-range-row.day-count-row .crp-range-value {
+  color: #007aff;
 }
 .crp-range-label {
   font-size: 13px;
