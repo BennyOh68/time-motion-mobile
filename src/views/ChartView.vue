@@ -13,7 +13,9 @@
         </select>
         <div class="date-nav">
           <button class="nav-btn" :disabled="!filterDate" @click="prevDay">◀</button>
+          <span class="date-spacer"></span>
           <span class="date-label">{{ formattedDate }}</span>
+          <span class="date-spacer"></span>
           <button class="nav-btn" :disabled="!filterDate" @click="nextDay">▶</button>
         </div>
       </div>
@@ -686,7 +688,15 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+}
+
+/* Auto-adjusting margin between the triangle buttons and the date label
+   (grows to fill free space up to 24px, shrinks to a 6px minimum) */
+.date-spacer {
+  flex: 1 1 auto;
+  min-width: 6px;
+  max-width: 24px;
+  height: 1px;
 }
 
 .nav-btn {
