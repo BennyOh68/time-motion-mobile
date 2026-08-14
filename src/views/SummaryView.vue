@@ -1,6 +1,19 @@
 <template>
   <div class="summary-page">
     <h2>📝 Summary for Edit</h2>
+
+    <!-- Rig + Date filter bar (mirrors Chart page; synced via appState) -->
+    <div class="summary-controls">
+      <select v-model="filterTeam" class="filter-select">
+        <option v-for="t in teams" :key="t" :value="t">{{ t }}</option>
+      </select>
+      <div class="date-nav">
+        <button class="nav-btn" :disabled="!filterDate" @click="prevDay">◀</button>
+        <span class="date-label">{{ formattedDate }}</span>
+        <button class="nav-btn" :disabled="!filterDate" @click="nextDay">▶</button>
+      </div>
+    </div>
+
     <div class="info-bar">
       <span class="info-left">{{ infoSummary }}</span>
       <button
@@ -12,8 +25,11 @@
       <span class="info-right">{{ formattedDate }}</span>
     </div>
 
-    <div v-if="sortedRows.length === 0" class="empty-msg">
+    <div v-if="appState.logRows.length === 0" class="empty-msg">
       No entries yet. Go back to the Input page to add data.
+    </div>
+    <div v-else-if="sortedRows.length === 0" class="empty-msg">
+      No entries for this rig/date. Try a different filter.
     </div>
 
     <div v-else class="table-wrapper" ref="tableWrapperRef" @touchstart.stop @touchend.stop>
@@ -173,6 +189,33 @@ import ScrollDepthPicker from '../components/ScrollDepthPicker.vue'
 
 const router = useRouter()
 
+// ── Rig + date filters (shared with Chart page via appState) ──
+const filterTeam = ref('')
+const filterDate = ref('')
+
+const teams = computed(() => {
+  const set = new Set(appState.logRows.map(r => r.teamRig).filter(Boolean))
+  return [...set]
+})
+
+function prevDay() {
+  if (!filterDate.value) return
+  const d = new Date(filterDate.value)
+  d.setDate(d.getDate() - 1)
+  filterDate.value = d.toISOString().split('T')[0]
+}
+
+function nextDay() {
+  if (!filterDate.value) return
+  const d = new Date(filterDate.value)
+  d.setDate(d.getDate() + 1)
+  filterDate.value = d.toISOString().split('T')[0]
+}
+
+// Persist the shared chart filter so the Chart page inherits these selections
+watch(filterTeam, (v) => { appState.chartFilterTeam = v })
+watch(filterDate, (v) => { appState.chartFilterDate = v })
+
 // ── Selection state ──
 const selectedIds = ref(new Set())
 
@@ -263,10 +306,14 @@ function insertRowBelow() {
   selectedIds.value = new Set()
 }
 
-// ── Stable order (insertion order, no-sort) ──
+// ── Stable order (insertion order, no-sort), filtered by rig + date ──
 // Rows keep their original sequence — editing timeIn/timeOut never re-ranks.
 const sortedRows = computed(() => {
-  return [...appState.logRows]
+  return appState.logRows.filter(r => {
+    if (filterDate.value && r.logDate !== filterDate.value) return false
+    if (filterTeam.value && r.teamRig !== filterTeam.value) return false
+    return true
+  })
 })
 
 // ── Grouped rows with ref. point headers ──
@@ -406,6 +453,24 @@ watch(tableWrapperRef, (el) => {
 }, { immediate: false })
 
 onMounted(() => {
+  // Restore shared filters from the Chart page, else default to max date + first rig
+  if (appState.chartFilterDate && !filterDate.value) {
+    filterDate.value = appState.chartFilterDate
+  } else if (!filterDate.value) {
+    const maxDate = appState.logRows
+      .map(r => r.logDate)
+      .filter(Boolean)
+      .sort()
+      .pop()
+    if (maxDate) filterDate.value = maxDate
+  }
+
+  if (appState.chartFilterTeam && teams.value.includes(appState.chartFilterTeam)) {
+    filterTeam.value = appState.chartFilterTeam
+  } else if (teams.value.length > 0) {
+    filterTeam.value = teams.value[0]
+  }
+
   nextTick(() => {
     const el = tableWrapperRef.value
     if (el) {
@@ -413,6 +478,11 @@ onMounted(() => {
       syncScrollbar()
     }
   })
+})
+
+// When the rig/date filter changes, clear any stale row selection
+watch([filterTeam, filterDate], () => {
+  if (selectedIds.value.size > 0) selectedIds.value = new Set()
 })
 
 onUnmounted(() => {
@@ -570,15 +640,15 @@ function formatDepth(val) {
   return num.toFixed(1) + 'm'
 }
 
-// ── Info bar ──
+// ── Info bar (reflects the filtered report) ──
 const infoSummary = computed(() => {
-  const typeRef = [workTypePrefix(appState.workType), appState.refPoint].filter(Boolean).join(' - ')
-  const parts = [appState.projectName, typeRef, appState.teamRig].filter(Boolean)
+  const project = sortedRows.value[0]?.projectName || appState.projectName
+  const parts = [project, filterTeam.value].filter(Boolean)
   return parts.join(' · ') || '—'
 })
 
 const formattedDate = computed(() => {
-  const d = appState.logRows[0]?.logDate
+  const d = filterDate.value
   if (!d) {
     const today = new Date()
     const day = String(today.getDate()).padStart(2, '0')
@@ -625,6 +695,69 @@ h2 {
 
 .info-right {
   flex-shrink: 0;
+}
+
+/* ── Rig + date filter bar (mirrors Chart page) ── */
+.summary-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  width: 200px;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 12px;
+  outline: none;
+  background: #fff;
+}
+
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+  color: #475569;
+}
+
+.nav-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.nav-btn:active {
+  background: #e2e8f0;
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.date-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  min-width: 120px;
+  text-align: center;
 }
 
 .btn-undo {
