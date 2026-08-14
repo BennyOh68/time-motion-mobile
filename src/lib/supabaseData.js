@@ -36,12 +36,30 @@ export async function fetchTimeEntries() {
  * @param {Array<object>} rows camelCase rows (same shape as submitFormRows output)
  */
 export async function insertTimeEntries(rows) {
-  if (!rows || rows.length === 0) return []
+  if (!rows || rows.length === 0) {
+    console.debug('[sync] insertTimeEntries: 0 rows — nothing to insert')
+    return []
+  }
   const userId = await currentUserId()
+  console.debug('[sync] insertTimeEntries: attempting insert', {
+    count: rows.length,
+    userId,
+    sample: rows[0],
+  })
   const payload = rows.map((row) => toDbRow(row, userId))
   const { data, error } = await supabase.from('time_entries').insert(payload).select()
 
-  if (error) throw new Error(message(error, 'Failed to save entries'))
+  if (error) {
+    console.error('[sync] insertTimeEntries ERROR', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      payload,
+    })
+    throw new Error(message(error, 'Failed to save entries'))
+  }
+  console.debug('[sync] insertTimeEntries OK: returned', data?.length, 'row(s)')
   return (data || []).map(toRow)
 }
 
@@ -219,6 +237,8 @@ function toSettingsDb(s) {
 }
 
 async function currentUserId() {
-  const { data } = await supabase.auth.getUser()
+  const { data, error } = await supabase.auth.getUser()
+  if (error) console.error('[sync] currentUserId ERROR:', error.message)
+  console.debug('[sync] currentUserId resolved:', data?.user?.id || null)
   return data?.user?.id || null
 }

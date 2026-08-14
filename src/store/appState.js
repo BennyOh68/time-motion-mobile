@@ -308,6 +308,7 @@ export async function submitFormRows() {
     }
   }
 
+  console.debug('[sync] submitFormRows: built', rows.length, 'row(s)', JSON.stringify(rows, null, 2))
   try {
     const saved = await insertTimeEntries(rows)
     // Server rows keep the same uuid ids (ids are provided client-side), so we
@@ -315,7 +316,12 @@ export async function submitFormRows() {
     appState.logRows.push(...saved)
     refreshKnown(saved)
   } catch (err) {
-    console.warn('Supabase insert failed (offline?); queued for retry:', err?.message)
+    console.error('[sync] submitFormRows INSERT FAILED:', {
+      code: err?.code,
+      message: err?.message,
+      details: err?.details,
+      hint: err?.hint,
+    })
     appState.logRows.push(...rows)
     pendingUploads.push(...rows)
   }
