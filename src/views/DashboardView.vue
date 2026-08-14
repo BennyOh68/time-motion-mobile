@@ -4,8 +4,8 @@
 
     <!-- Source indicator -->
     <div class="filter-bar">
-      <label class="filter-label">Logged Entries:</label>
-      <span class="entry-count">{{ filteredRows.length }} row(s)</span>
+      <label class="filter-label">Project Name:</label>
+      <span class="entry-count">{{ appState.projectName || '—' }}</span>
       <span v-if="loading" class="loading-spin">⏳ Loading…</span>
       <span v-if="errorMsg" class="error-msg">{{ errorMsg }}</span>
     </div>
