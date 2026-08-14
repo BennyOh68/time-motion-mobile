@@ -22,14 +22,21 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supabase } from './lib/supabase.js'
-import { appState } from './store/appState.js'
+import { appState, hydrateLogRows, applyRealtimeEvent } from './store/appState.js'
+import { hydrateDropdownSettings } from './store/dropdowns.js'
+import { subscribeToTimeEntries } from './lib/supabaseData.js'
 
 const router = useRouter()
 const route = useRoute()
 const isLoggedIn = computed(() => !!appState.user)
+
+// Realtime subscription handle + event coalescer (bursts become one render pass)
+let realtimeUnsub = null
+let realtimeTimer = null
+let pendingEvents = []
 
 // ── Swipe navigation ──
 const routeOrder = ['InputSetup', 'Summary', 'Chart', 'Export', 'Dashboard']
@@ -74,21 +81,68 @@ onMounted(async () => {
   if (data.session) {
     appState.user = data.session.user
     appState.session = data.session
+    await hydrateUserData()
   }
 })
 
 // Keep appState in sync with Supabase auth events (login/logout/token refresh)
-supabase.auth.onAuthStateChange((_event, session) => {
+supabase.auth.onAuthStateChange((event, session) => {
   appState.user = session?.user || null
   appState.session = session || null
+  if (session) {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      hydrateUserData()
+    }
+  } else {
+    stopRealtime()
+  }
 })
+
+// ── Data hydration + realtime sync (cross-device) ────────────────────────────
+async function hydrateUserData() {
+  try {
+    await Promise.all([hydrateLogRows(), hydrateDropdownSettings()])
+  } catch (err) {
+    console.warn('Supabase hydration failed (offline?):', err?.message)
+  }
+  startRealtime()
+}
+
+function startRealtime() {
+  if (realtimeUnsub) return // already subscribed
+  realtimeUnsub = subscribeToTimeEntries((evt) => {
+    pendingEvents.push(evt)
+    clearTimeout(realtimeTimer)
+    realtimeTimer = setTimeout(flushRealtimeEvents, 50)
+  })
+}
+
+function flushRealtimeEvents() {
+  const batch = pendingEvents
+  pendingEvents = []
+  for (const evt of batch) applyRealtimeEvent(evt)
+}
+
+function stopRealtime() {
+  if (realtimeUnsub) {
+    realtimeUnsub()
+    realtimeUnsub = null
+  }
+  clearTimeout(realtimeTimer)
+  pendingEvents = []
+}
 
 async function logout() {
   await supabase.auth.signOut()
+  stopRealtime()
   appState.user = null
   appState.session = null
   router.push('/login')
 }
+
+onUnmounted(() => {
+  stopRealtime()
+})
 </script>
 
 <style>

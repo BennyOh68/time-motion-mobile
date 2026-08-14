@@ -1,4 +1,9 @@
 import { reactive, watch } from 'vue'
+import {
+  fetchTimeEntries,
+  insertTimeEntries,
+  updateTimeEntry,
+} from '../lib/supabaseData.js'
 
 const STORAGE_KEY = 'tm_appState'
 
@@ -82,7 +87,8 @@ export const appState = reactive({
   chartSnapshot: null,
 })
 
-// Persist relevant fields to localStorage on every change
+// Persist relevant fields to localStorage on every change (offline cache only —
+// Supabase is the source of truth once hydrated).
 watch(
   () => {
     const { user, session, chartSnapshot, ...rest } = appState
@@ -93,6 +99,100 @@ watch(
   },
   { deep: true }
 )
+
+// ── Supabase sync: known DB state, hydration, realtime, edit pushback ────────
+let knownById = new Map()   // id -> JSON snapshot of the row as last known in DB
+let pendingUploads = []     // local rows that failed first insert (offline retry)
+let syncTimer = null
+
+function refreshKnown(rows = appState.logRows) {
+  knownById = new Map(rows.map((r) => [r.id, JSON.stringify(r)]))
+}
+
+/**
+ * Replace local logRows with the server truth. Called after login / hydration.
+ */
+export async function hydrateLogRows() {
+  const rows = await fetchTimeEntries()
+  appState.logRows = rows
+  refreshKnown(rows)
+  return rows
+}
+
+/**
+ * Apply a realtime event (INSERT / UPDATE / DELETE) from another device.
+ */
+export function applyRealtimeEvent(evt) {
+  if (evt.type === 'DELETE') {
+    appState.logRows = appState.logRows.filter((r) => r.id !== evt.oldId)
+  } else if (evt.type === 'INSERT') {
+    if (!appState.logRows.some((r) => r.id === evt.newRow.id)) {
+      appState.logRows.push(evt.newRow)
+    }
+  } else if (evt.type === 'UPDATE') {
+    const i = appState.logRows.findIndex((r) => r.id === evt.newRow.id)
+    if (i >= 0) appState.logRows[i] = evt.newRow
+  }
+  refreshKnown()
+}
+
+// Debounced pushback: Summary-page edits (v-model / picker cell edits) and
+// offline-retry inserts are synced to Supabase after local changes settle.
+watch(
+  () => appState.logRows.map((r) => ({ ...r })),
+  () => {
+    clearTimeout(syncTimer)
+    syncTimer = setTimeout(flushLocalEdits, 800)
+  },
+  { deep: true }
+)
+
+async function flushLocalEdits() {
+  const current = appState.logRows
+
+  // 1) Retry first-time inserts that failed while offline
+  if (pendingUploads.length > 0) {
+    try {
+      const saved = await insertTimeEntries(pendingUploads)
+      const byId = new Map(saved.map((s) => [s.id, s]))
+      for (let i = 0; i < current.length; i++) {
+        const server = byId.get(current[i].id)
+        if (server) current[i] = server
+      }
+      pendingUploads = []
+      refreshKnown()
+    } catch (err) {
+      console.warn('Supabase upload retry deferred (offline?):', err?.message)
+      return
+    }
+  }
+
+  // 2) Push edits to rows that already exist in the DB
+  const dirty = current.filter((row) => row.id && knownById.get(row.id) !== JSON.stringify(row))
+  if (dirty.length === 0) return
+
+  try {
+    for (const row of dirty) {
+      await updateTimeEntry(row.id, {
+        category: row.category,
+        activityName: row.activityName,
+        timeIn: row.timeIn,
+        timeOut: row.timeOut,
+        projectName: row.projectName,
+        teamRig: row.teamRig,
+        workType: row.workType,
+        refPoint: row.refPoint,
+        startDepth: row.startDepth,
+        endDepth: row.endDepth,
+        logDate: row.logDate,
+      })
+    }
+  } catch (err) {
+    console.warn('Supabase edit sync deferred (offline?):', err?.message)
+    return
+  }
+  refreshKnown()
+}
 
 /**
  * Clear all form fields but keep header defaults and logRows.
@@ -155,7 +255,7 @@ export function classifyActivity(activityName) {
  * Push current form entries as a row into logRows, then reset form.
  * Returns true if at least one segment was populated.
  */
-export function submitFormRows() {
+export async function submitFormRows() {
   const rows = []
 
   const segments = [
@@ -208,7 +308,17 @@ export function submitFormRows() {
     }
   }
 
-  appState.logRows.push(...rows)
+  try {
+    const saved = await insertTimeEntries(rows)
+    // Server rows keep the same uuid ids (ids are provided client-side), so we
+    // can simply swap in the authoritative copies.
+    appState.logRows.push(...saved)
+    refreshKnown(saved)
+  } catch (err) {
+    console.warn('Supabase insert failed (offline?); queued for retry:', err?.message)
+    appState.logRows.push(...rows)
+    pendingUploads.push(...rows)
+  }
   resetForm()
   return rows.length > 0
 }

@@ -171,19 +171,8 @@ async function exportCSV() {
     link.click()
     URL.revokeObjectURL(url)
 
-    // ── Rolling local deletion: keep last 2 days, drop oldest if 3+ days exist ──
-    const dates = [...new Set(appState.logRows.map(r => r.logDate))].sort()
-    let delMsg = ''
-    if (dates.length >= 3) {
-      const oldest = dates[0]
-      const before = appState.logRows.length
-      appState.logRows = appState.logRows.filter(r => r.logDate !== oldest)
-      const removed = before - appState.logRows.length
-      delMsg = `\n🗑️ Removed ${removed} rows from ${oldest} (local storage).`
-    }
-
     const extra = dupCount > 0 ? ` (${dupCount} flagged as duplicate)` : ''
-    alert(`✅ Downloaded ${rows.length} rows as CSV${extra}.${delMsg}`)
+    alert(`✅ Downloaded ${rows.length} rows as CSV${extra}.`)
   } catch (e) {
     alert('Failed to export CSV: ' + e.message)
   } finally {
@@ -217,16 +206,6 @@ async function syncToSheets() {
       msg += ` (${result.duplicateCount} flagged as duplicate)`
     }
     msg += `. <a href="${result.url}" target="_blank" rel="noopener">Open Google Sheet</a>`
-
-    // ── Rolling local deletion: keep last 2 days, drop oldest if 3+ days exist ──
-    const dates = [...new Set(appState.logRows.map(r => r.logDate))].sort()
-    if (dates.length >= 3) {
-      const oldest = dates[0]
-      const before = appState.logRows.length
-      appState.logRows = appState.logRows.filter(r => r.logDate !== oldest)
-      const removed = before - appState.logRows.length
-      msg += `<br>🗑️ Removed ${removed} rows from ${oldest} (local storage).`
-    }
 
     syncMsg.value = msg
   } catch (e) {

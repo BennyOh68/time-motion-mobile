@@ -1,4 +1,8 @@
 import { reactive, watch } from 'vue'
+import {
+  fetchDropdownSettings,
+  upsertDropdownSettings,
+} from '../lib/supabaseData.js'
 
 const STORAGE_KEY = 'tm_dropdowns'
 
@@ -79,6 +83,9 @@ export const hiddenItems = reactive({
   waitsList: persisted?.hiddenWait || {},
 })
 
+let hydrating = false
+let pushTimer = null
+
 watch(
   () => ({
     ...JSON.parse(JSON.stringify(dropdowns)),
@@ -88,9 +95,44 @@ watch(
   }),
   (state) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    // Push to Supabase (debounced) so the same user's lists sync across devices.
+    if (hydrating) return
+    clearTimeout(pushTimer)
+    pushTimer = setTimeout(() => {
+      upsertDropdownSettings(state).catch((err) =>
+        console.warn('Supabase settings push deferred (offline?):', err?.message)
+      )
+    }, 600)
   },
   { deep: true }
 )
+
+/**
+ * Load the current user's dropdown settings from Supabase and apply them.
+ * Called after login. Falls back to local defaults if the server has no row yet.
+ */
+export async function hydrateDropdownSettings() {
+  hydrating = true
+  try {
+    const settings = await fetchDropdownSettings()
+    if (settings) {
+      dropdowns.rigList = settings.rigList
+      dropdowns.preparationList = settings.preparationList
+      dropdowns.productionList = settings.productionList
+      dropdowns.waitsList = settings.waitsList
+      dropdowns.lastPrepSelection = settings.lastPrepSelection
+      dropdowns.lastProdSelection = settings.lastProdSelection
+      dropdowns.lastWaitSelection = settings.lastWaitSelection
+      hiddenItems.preparationList = settings.hiddenPrep
+      hiddenItems.productionList = settings.hiddenProd
+      hiddenItems.waitsList = settings.hiddenWait
+    }
+  } catch (err) {
+    console.warn('Supabase dropdown hydration failed (offline?):', err?.message)
+  } finally {
+    hydrating = false
+  }
+}
 
 /**
  * Reset all dropdown lists to their defaults.

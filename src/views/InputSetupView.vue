@@ -455,7 +455,7 @@ function formatDepthDisplay(val) {
 }
 
 // ── Navigation ────────────────────────────────────────────────
-function handleNext() {
+async function handleNext() {
   validationMsg.value = ''
 
   if (!appState.projectName.trim()) {
@@ -475,7 +475,7 @@ function handleNext() {
     return
   }
 
-  submitFormRows()
+  await submitFormRows()
   if (appState.logRows.length === 0) {
     validationMsg.value = 'Add at least one segment entry before proceeding.'
     return

@@ -2,12 +2,10 @@
   <div class="dashboard-page">
     <h2>📊 Dashboard</h2>
 
-    <!-- Tab Selector -->
+    <!-- Source indicator -->
     <div class="filter-bar">
-      <label class="filter-label">Project Tab:</label>
-      <select v-model="selectedTab" @change="loadData" class="filter-select">
-        <option v-for="tab in tabList" :key="tab" :value="tab">{{ tab }}</option>
-      </select>
+      <label class="filter-label">Logged Entries:</label>
+      <span class="entry-count">{{ filteredRows.length }} row(s)</span>
       <span v-if="loading" class="loading-spin">⏳ Loading…</span>
       <span v-if="errorMsg" class="error-msg">{{ errorMsg }}</span>
     </div>
@@ -173,15 +171,10 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
-import { readSheetData, listSheetTabs } from '../lib/googleSheets.js'
+import { appState } from '../store/appState.js'
 import CalendarRangePicker from '../components/CalendarRangePicker.vue'
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels)
-
-// ── Constants ──
-const SPREADSHEET_ID = import.meta.env.VITE_GCP_SPREADSHEET_ID
-const CLIENT_EMAIL = import.meta.env.VITE_GCP_CLIENT_EMAIL
-const PRIVATE_KEY = import.meta.env.VITE_GCP_PRIVATE_KEY
 
 const CATEGORY_CONFIG = [
   { name: 'Preparation Work',           color: '#3b82f6' },
@@ -213,12 +206,28 @@ function normalizeCategory(raw) {
 const views = ['Daily', 'Weekly', 'Monthly']
 
 // ── State ──
-const tabList = ref([])
-const selectedTab = ref('')
-const rows = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
 const viewMode = ref('Daily')
+
+// Supabase-backed rows (hydrated from time_entries). Local ref so computed
+// dependents react identically to the old sheet loader.
+const rows = ref([])
+function refreshRows() {
+  rows.value = appState.logRows.map(toSheetStyle)
+}
+
+// Map appState.logRows (camelCase) → the field names the dashboard computes on.
+function toSheetStyle(r) {
+  return {
+    date: r.logDate,
+    category: r.category,
+    'time in': r.timeIn,
+    'time out': r.timeOut,
+    'start depth': r.startDepth,
+    'end depth': r.endDepth,
+  }
+}
 
 // Projection inputs
 const totalGroutingOfProject = ref(0)
@@ -622,49 +631,24 @@ function clearDateRange() {
   rangeEnd.value = ''
 }
 
-// ── Load tabs on mount ──
-onMounted(async () => {
+// ── Load data from Supabase on mount ──
+onMounted(() => {
   loading.value = true
-  errorMsg.value = ''
   try {
-    const tabs = await listSheetTabs({
-      clientEmail: CLIENT_EMAIL,
-      privateKey: PRIVATE_KEY,
-      spreadsheetId: SPREADSHEET_ID,
-    })
-    tabList.value = tabs
-    if (tabs.length > 0) {
-      selectedTab.value = tabs[0]
-      await loadData()
-    } else {
-      errorMsg.value = 'No tabs found in spreadsheet.'
-    }
-  } catch (e) {
-    errorMsg.value = 'Failed to list tabs: ' + e.message
+    refreshRows()
+    errorMsg.value = ''
   } finally {
     loading.value = false
   }
 })
 
-async function loadData() {
-  if (!selectedTab.value) return
-  loading.value = true
-  errorMsg.value = ''
-  try {
-    const data = await readSheetData({
-      clientEmail: CLIENT_EMAIL,
-      privateKey: PRIVATE_KEY,
-      spreadsheetId: SPREADSHEET_ID,
-      tabName: selectedTab.value,
-    })
-    rows.value = data
-  } catch (e) {
-    errorMsg.value = 'Failed to load data: ' + e.message
-    rows.value = []
-  } finally {
-    loading.value = false
-  }
-}
+// Live-update the dashboard whenever logRows changes (local submits, edits,
+// deletes, or realtime events from other devices).
+watch(
+  () => appState.logRows.length,
+  () => refreshRows(),
+  { deep: true }
+)
 </script>
 
 <style scoped>
