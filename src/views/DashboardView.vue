@@ -23,14 +23,16 @@
     </div>
 
     <!-- HORIZONTAL STACKED BAR CHART -->
-    <div v-if="chartReady" class="chart-container">
+    <div v-if="!loading && (filteredRows.length > 0 || hasActiveRange)" class="chart-container">
       <Bar v-if="hasChartData" :data="chartData" :options="chartOptions" />
-      <p v-else class="empty-msg" style="padding: 12px 0;">Chart data is all zero — check category mapping.</p>
+      <p v-else class="empty-msg" style="padding: 12px 0;">
+        {{ hasActiveRange && filteredRows.length === 0 ? 'No work done in this date range.' : 'Chart data is all zero — check category mapping.' }}
+      </p>
     </div>
-    <p v-else-if="!loading && filteredRows.length === 0" class="empty-msg">No data found in this tab.</p>
+    <p v-else-if="!loading && filteredRows.length === 0 && !hasActiveRange" class="empty-msg">No data found in this tab.</p>
 
     <!-- CATEGORY REPORT TABLE -->
-    <div v-if="filteredRows.length > 0" class="report-table">
+    <div v-if="filteredRows.length > 0 || hasActiveRange" class="report-table">
       <div
         v-for="cat in categories"
         :key="cat.name"
@@ -51,7 +53,7 @@
     </div>
 
     <!-- PROJECT TOTALS -->
-    <div v-if="filteredRows.length > 0" class="totals-section">
+    <div v-if="filteredRows.length > 0 || hasActiveRange" class="totals-section">
       <h3>Project Totals</h3>
       <div class="totals-grid">
         <div class="total-item">
@@ -83,7 +85,7 @@
               </template>
             </button>
             <button
-              v-if="rangeStart && rangeEnd"
+              v-if="hasActiveRange"
               class="date-range-clear"
               @click="clearDateRange"
             >✕ Reset</button>
@@ -222,6 +224,9 @@ const showDatePicker = ref(false)
 const showCalendar = ref(false)
 const rangeStart = ref('')
 const rangeEnd = ref('')
+
+// True when the user has explicitly picked a date range in the calendar
+const hasActiveRange = computed(() => !!(rangeStart.value && rangeEnd.value))
 
 // Map the active Daily/Weekly/Monthly tab to the picker interaction mode
 const pickerMode = computed(() => {
@@ -530,11 +535,6 @@ const chartData = computed(() => {
       borderWidth: 1,
     })),
   }
-})
-
-const chartReady = computed(() => {
-  if (filteredRows.value.length === 0) return false
-  return true
 })
 
 const hasChartData = computed(() => {
