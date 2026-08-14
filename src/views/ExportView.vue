@@ -56,6 +56,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { appState, classifyActivity } from '../store/appState.js'
+import { workTypePrefix } from '../store/dropdowns.js'
 import {
   Chart as ChartJS,
   LinearScale,
@@ -621,7 +622,7 @@ function buildAnnotationsForExport(filteredRows, xMin, xMax, yMin, yMax, canvasW
       yValue: yMin - 0.75,
       yAdjust: 0,
       drawTime: 'afterDraw',
-      content: `${refRows[0].workType} ${refPoint}`,
+      content: `${workTypePrefix(refRows[0].workType)} - ${refPoint}`,
       font: { size: 12, weight: 'bold' },
       color: '#1e293b',
       backgroundColor: 'rgba(255,255,255,0.85)',

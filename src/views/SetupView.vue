@@ -92,13 +92,41 @@
       </button>
     </div>
 
+    <!-- ── Work Type labels ── -->
+    <div class="worktype-panel">
+      <h3 class="wt-title">Work Type Labels</h3>
+      <p class="wt-desc">
+        Edit the radio button labels on the input page. Whatever is inside
+        the brackets ( ) becomes the prefix shown before the Ref. Point
+        (e.g. <code>JGP - P1</code>).
+      </p>
+      <div class="wt-field">
+        <span class="wt-key">JGP</span>
+        <input
+          v-model="workTypeLabels.JGP"
+          type="text"
+          class="list-input"
+          placeholder="Jet Grout Pile (JGP)"
+        />
+      </div>
+      <div class="wt-field">
+        <span class="wt-key">GH</span>
+        <input
+          v-model="workTypeLabels.GH"
+          type="text"
+          class="list-input"
+          placeholder="Grout Hole (GH)"
+        />
+      </div>
+    </div>
+
     <button class="btn-secondary" @click="resetAll">Reset All to Defaults</button>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import { dropdowns, hiddenItems, resetDropdowns } from '../store/dropdowns.js'
+import { dropdowns, hiddenItems, resetDropdowns, workTypeLabels } from '../store/dropdowns.js'
 
 const activeTab = ref('prep')
 const focusedIndex = ref(null)
@@ -482,5 +510,56 @@ h2 {
 
 .btn-secondary:hover {
   background: #e2e8f0;
+}
+
+/* ── Work Type labels panel ── */
+.worktype-panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+  margin-bottom: 12px;
+}
+
+.wt-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: #1e293b;
+}
+
+.wt-desc {
+  color: #64748b;
+  font-size: 12px;
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.wt-desc code {
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #2563eb;
+}
+
+.wt-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.wt-field:last-child {
+  margin-bottom: 0;
+}
+
+.wt-key {
+  flex-shrink: 0;
+  width: 34px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-align: center;
 }
 </style>

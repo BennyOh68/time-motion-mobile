@@ -41,11 +41,13 @@ create table if not exists public.dropdown_settings (
   hidden_prep          jsonb not null default '{}'::jsonb,
   hidden_prod          jsonb not null default '{}'::jsonb,
   hidden_wait          jsonb not null default '{}'::jsonb,
+  work_type_labels     jsonb not null default '{"JGP":"Jet Grout Pile (JGP)","GH":"Grout Hole (GH)"}'::jsonb,
   updated_at           timestamptz not null default now()
 );
 
--- Existing databases created before hidden_rig was added: run this ALTER once.
+-- Existing databases created before these columns were added: run these ALTERs once.
 -- alter table public.dropdown_settings add column if not exists hidden_rig jsonb not null default '{}'::jsonb;
+-- alter table public.dropdown_settings add column if not exists work_type_labels jsonb not null default '{"JGP":"Jet Grout Pile (JGP)","GH":"Grout Hole (GH)"}'::jsonb;
 
 -- ── Optional Table 3: profiles (user metadata) ──────────────────────────────
 create table if not exists public.profiles (

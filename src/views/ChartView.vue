@@ -45,6 +45,7 @@ import {
 import annotationPlugin from 'chartjs-plugin-annotation'
 import zoomPlugin from 'chartjs-plugin-zoom'
 import { appState } from '../store/appState.js'
+import { workTypePrefix } from '../store/dropdowns.js'
 
 ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend)
 ChartJS.register(annotationPlugin)
@@ -354,7 +355,7 @@ function buildAnnotations(xMin, xMax, yMin, yMax) {
       yValue: -0.75,
       yAdjust: 0,
       drawTime: 'afterDraw',
-      content: `${refRows[0].workType} ${refPoint}`,
+      content: `${workTypePrefix(refRows[0].workType)} - ${refPoint}`,
       font: { size: 13, weight: 'bold' },
       color: '#1e293b',
       backgroundColor: 'rgba(255,255,255,0.85)',

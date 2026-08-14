@@ -53,6 +53,12 @@ const DEFAULT_WAITS = [
   'Dinner',
 ]
 
+// ── Work Type radio labels (editable in Setup; value stays JGP/GH) ──
+const DEFAULT_WORK_TYPE_LABELS = {
+  JGP: 'Jet Grout Pile (JGP)',
+  GH: 'Grout Hole (GH)',
+}
+
 function loadLists() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -84,12 +90,33 @@ export const hiddenItems = reactive({
   waitsList: persisted?.hiddenWait || {},
 })
 
+// ── Work Type radio labels (display text per stored value) ──
+export const workTypeLabels = reactive({
+  ...DEFAULT_WORK_TYPE_LABELS,
+  ...(persisted?.workTypeLabels || {}),
+})
+
+/**
+ * Extract the abbreviation from a label's parentheses, e.g.
+ * "Jet Grout Pile (JGP)" → "JGP". Falls back to the raw value (or label)
+ * when no brackets are present.
+ */
+export function workTypePrefix(value) {
+  const label = workTypeLabels[value]
+  if (label) {
+    const m = String(label).match(/\(([^)]+)\)/)
+    if (m) return m[1].trim()
+  }
+  return value || ''
+}
+
 let hydrating = false
 let pushTimer = null
 
 watch(
   () => ({
     ...JSON.parse(JSON.stringify(dropdowns)),
+    workTypeLabels: JSON.parse(JSON.stringify(workTypeLabels)),
     hiddenRig: JSON.parse(JSON.stringify(hiddenItems.rigList)),
     hiddenPrep: JSON.parse(JSON.stringify(hiddenItems.preparationList)),
     hiddenProd: JSON.parse(JSON.stringify(hiddenItems.productionList)),
@@ -125,6 +152,8 @@ export async function hydrateDropdownSettings() {
       dropdowns.lastPrepSelection = settings.lastPrepSelection
       dropdowns.lastProdSelection = settings.lastProdSelection
       dropdowns.lastWaitSelection = settings.lastWaitSelection
+      workTypeLabels.JGP = settings.workTypeLabels?.JGP || DEFAULT_WORK_TYPE_LABELS.JGP
+      workTypeLabels.GH = settings.workTypeLabels?.GH || DEFAULT_WORK_TYPE_LABELS.GH
       hiddenItems.rigList = settings.hiddenRig
       hiddenItems.preparationList = settings.hiddenPrep
       hiddenItems.productionList = settings.hiddenProd
@@ -145,6 +174,8 @@ export function resetDropdowns() {
   dropdowns.preparationList = [...DEFAULT_PREPARATION]
   dropdowns.productionList = [...DEFAULT_PRODUCTION]
   dropdowns.waitsList = [...DEFAULT_WAITS]
+  workTypeLabels.JGP = DEFAULT_WORK_TYPE_LABELS.JGP
+  workTypeLabels.GH = DEFAULT_WORK_TYPE_LABELS.GH
   hiddenItems.rigList = {}
   hiddenItems.preparationList = {}
   hiddenItems.productionList = {}

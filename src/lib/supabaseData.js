@@ -133,6 +133,10 @@ const EMPTY_DROPDOWN_SETTINGS = {
   hiddenPrep: {},
   hiddenProd: {},
   hiddenWait: {},
+  workTypeLabels: {
+    JGP: 'Jet Grout Pile (JGP)',
+    GH: 'Grout Hole (GH)',
+  },
 }
 
 /**
@@ -217,6 +221,7 @@ function toSettings(db) {
     hiddenPrep: db.hidden_prep || {},
     hiddenProd: db.hidden_prod || {},
     hiddenWait: db.hidden_wait || {},
+    workTypeLabels: db.work_type_labels || {},
   }
 }
 
@@ -233,6 +238,7 @@ function toSettingsDb(s) {
     hidden_prep: s.hiddenPrep,
     hidden_prod: s.hiddenProd,
     hidden_wait: s.hiddenWait,
+    work_type_labels: s.workTypeLabels,
     updated_at: new Date().toISOString(),
   }
 }

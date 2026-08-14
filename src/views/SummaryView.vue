@@ -41,7 +41,7 @@
               <tr v-if="item.type === 'header'" class="group-header-row" @click="toggleGroup(item.groupKey)">
                 <td :colspan="7" class="group-header-cell">
                   <span class="group-chevron">{{ collapsedGroups.has(item.groupKey) ? '▶' : '▼' }}</span>
-                  📍 {{ item.workType }} — {{ item.refPoint }}
+                  📍 {{ workTypePrefix(item.workType) }} - {{ item.refPoint }}
                   <span class="group-row-count">({{ item.rowCount }})</span>
                 </td>
               </tr>
@@ -167,6 +167,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { appState } from '../store/appState.js'
+import { workTypePrefix } from '../store/dropdowns.js'
 import ScrollTimePicker from '../components/ScrollTimePicker.vue'
 import ScrollDepthPicker from '../components/ScrollDepthPicker.vue'
 
@@ -571,7 +572,7 @@ function formatDepth(val) {
 
 // ── Info bar ──
 const infoSummary = computed(() => {
-  const typeRef = [appState.workType, appState.refPoint].filter(Boolean).join(' - ')
+  const typeRef = [workTypePrefix(appState.workType), appState.refPoint].filter(Boolean).join(' - ')
   const parts = [appState.projectName, typeRef, appState.teamRig].filter(Boolean)
   return parts.join(' · ') || '—'
 })

@@ -53,11 +53,11 @@
           <div class="radio-group">
             <label class="radio-label" :class="{ active: appState.workType === 'JGP' }">
               <input type="radio" v-model="appState.workType" value="JGP" />
-              Jet Grout Pile <span class="abbr">(JGP)</span>
+              {{ workTypeLabels.JGP }}
             </label>
             <label class="radio-label" :class="{ active: appState.workType === 'GH' }">
               <input type="radio" v-model="appState.workType" value="GH" />
-              Grout Hole <span class="abbr">(GH)</span>
+              {{ workTypeLabels.GH }}
             </label>
           </div>
         </div>
@@ -209,7 +209,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { appState, submitFormRows } from '../store/appState.js'
-import { dropdowns, hiddenItems } from '../store/dropdowns.js'
+import { dropdowns, hiddenItems, workTypeLabels, workTypePrefix } from '../store/dropdowns.js'
 import ScrollDatePicker from '../components/ScrollDatePicker.vue'
 import ScrollTimePicker from '../components/ScrollTimePicker.vue'
 import ScrollDepthPicker from '../components/ScrollDepthPicker.vue'
@@ -584,7 +584,7 @@ function undoLastSegment(category, prefix) {
 
 // ── Info bar helpers ──────────────────────────────────────────
 const infoSummary = computed(() => {
-  const typeRef = [appState.workType, appState.refPoint].filter(Boolean).join(' - ')
+  const typeRef = [workTypePrefix(appState.workType), appState.refPoint].filter(Boolean).join(' - ')
   const parts = [appState.projectName, typeRef, appState.teamRig].filter(Boolean)
   return parts.join(' · ') || '—'
 })
