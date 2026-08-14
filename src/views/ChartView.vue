@@ -2,7 +2,7 @@
   <div class="chart-page">
     <!-- Chart wrapper -->
     <div class="chart-wrapper">
-      <h2>📊 Time & Motion Chart</h2>
+      <h2>📈 Time & Motion Chart</h2>
       <div class="chart-meta">
         <span><b>Project:</b> {{ appState.projectName || '—' }}</span>
       </div>

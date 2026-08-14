@@ -29,7 +29,7 @@
 
       <!-- PNG Download -->
       <div class="card">
-        <h3>🖼 Chart as PNG</h3>
+        <h3>📈 Chart as PNG</h3>
         <p>Capture the chart from the Chart page as a high-resolution image.</p>
         <button class="btn-outline" @click="exportPNG" :disabled="pngLoading">
           {{ pngLoading ? 'Generating…' : 'Download PNG' }}
