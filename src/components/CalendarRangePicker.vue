@@ -175,6 +175,9 @@ function cellClass(cell) {
 }
 
 function isCellDisabled(d) {
+  // End candidates in monthly mode may fall in the next month(s); keep them
+  // tappable even when rendered as out-of-month cells.
+  if (isEndCandidate(d)) return false
   if (d.getMonth() !== cursorMonth.value) return true
   const ds = startOfDay(d)
   if (minDate.value && ds < startOfDay(minDate.value)) return true
@@ -182,16 +185,19 @@ function isCellDisabled(d) {
   return false
 }
 
-// Monthly mode: after Start is picked, only day 28/29/30/31 of the currently
-// displayed month (and >= Start) are valid End dates. The user can navigate
-// to the next month to pick a full-month-length end date.
+// Monthly mode: after Start is picked, the End Date must be exactly
+// Start+27, +28, +29, or +30 days (a ~28-31 day month-length span).
+// These candidates are real calendar dates relative to Start, so they may
+// land in the following month(s); the user can navigate there to tap them.
+const MONTHLY_END_OFFSETS = [27, 28, 29, 30]
 function isEndCandidate(d) {
   if (props.mode !== 'monthly') return false
   if (!startDate.value || endDate.value) return false
-  if (d.getFullYear() !== cursorYear.value || d.getMonth() !== cursorMonth.value) return false
-  if (d.getDate() < 28) return false
-  if (startOfDay(d) < startOfDay(startDate.value)) return false
-  return true
+  const ds = startOfDay(d)
+  if (minDate.value && ds < startOfDay(minDate.value)) return false
+  if (maxDate.value && ds > startOfDay(maxDate.value)) return false
+  const start = startOfDay(startDate.value)
+  return MONTHLY_END_OFFSETS.some((n) => isSameDay(ds, addDays(start, n)))
 }
 
 // ── Selection logic per mode ──
