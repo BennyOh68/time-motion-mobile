@@ -45,8 +45,15 @@
           </div>
         </div>
 
+        <!-- Footer: single date mode -->
+        <div v-if="mode === 'single'" class="crp-footer">
+          <div class="crp-range-row">
+            <span class="crp-range-label">Date</span>
+            <span class="crp-range-value" :class="{ empty: !startDate }">{{ startDisplay }}</span>
+          </div>
+        </div>
         <!-- Footer: Start Date above End Date, with day count -->
-        <div class="crp-footer">
+        <div v-else class="crp-footer">
           <div class="crp-range-row">
             <span class="crp-range-label">Start Date</span>
             <span class="crp-range-value" :class="{ empty: !startDate }">{{ startDisplay }}</span>
@@ -70,7 +77,7 @@ import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  // 'daily' | 'weekly' | 'monthly'
+  // 'daily' | 'weekly' | 'monthly' | 'single'
   mode: { type: String, default: 'daily' },
   // Date bounds (optional) — accepts Date objects or YYYY-MM-DD strings
   minDate: { type: [String, Date], default: null },
@@ -221,6 +228,13 @@ function onCellTap(cell) {
   const d = cell.date
   if (isCellDisabled(d)) return
 
+  if (props.mode === 'single') {
+    // Single date: tapping a date picks that day (start = end)
+    startDate.value = d
+    endDate.value = d
+    return
+  }
+
   if (props.mode === 'weekly') {
     // Fixed 7-day window: Start → Start + 6
     startDate.value = d
@@ -327,6 +341,11 @@ function onConfirm() {
   const s = startDate.value
   let e = endDate.value
   if (s && !e) e = s // single-day fallback so Done always yields a range
+  if (props.mode === 'single') {
+    if (s) emit('confirm', { start: toDateStr(s), end: toDateStr(s), date: toDateStr(s) })
+    emit('update:show', false)
+    return
+  }
   if (s && e) emit('confirm', { start: toDateStr(s), end: toDateStr(e) })
   emit('update:show', false)
 }

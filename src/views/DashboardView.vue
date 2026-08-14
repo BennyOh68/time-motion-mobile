@@ -138,7 +138,7 @@
         <div class="proj-item">
           <label>Initial Date</label>
           <button class="date-trigger-btn" @click="showDatePicker = true">
-            {{ initialDate || 'Select date' }}
+            {{ initialDateDisplay || 'Select date' }}
           </button>
         </div>
       </div>
@@ -148,8 +148,14 @@
       </div>
     </div>
 
-    <!-- Scroll Date Picker -->
-    <ScrollDatePicker v-model="initialDate" v-model:visible="showDatePicker" />
+    <!-- iOS-style single-date calendar: Initial Date picker -->
+    <CalendarRangePicker
+      v-model:show="showDatePicker"
+      mode="single"
+      :model-start="initialDate"
+      :model-end="initialDate"
+      @confirm="onInitialDateConfirm"
+    />
 
     <!-- iOS-style range calendar: date-range filter for Project Totals -->
     <CalendarRangePicker
@@ -168,7 +174,6 @@ import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { readSheetData, listSheetTabs } from '../lib/googleSheets.js'
-import ScrollDatePicker from '../components/ScrollDatePicker.vue'
 import CalendarRangePicker from '../components/CalendarRangePicker.vue'
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels)
@@ -219,6 +224,12 @@ const viewMode = ref('Daily')
 const totalGroutingOfProject = ref(0)
 const initialDate = ref(formatDate(new Date()))
 const showDatePicker = ref(false)
+
+// dd-mm-YYYY display of the Initial Date (purpose unchanged — drives the projection)
+const initialDateDisplay = computed(() => {
+  const d = parseDate(initialDate.value)
+  return d ? formatDisplayDate(d) : ''
+})
 
 // ── Date-range filter state (Project Totals → iOS-style range calendar) ──
 const showCalendar = ref(false)
@@ -597,6 +608,12 @@ function onCalendarConfirm({ start, end }) {
   rangeStart.value = start
   rangeEnd.value = end
   showCalendar.value = false
+}
+
+// ── Initial Date: confirm a picked single date from the iOS-style picker ──
+function onInitialDateConfirm({ start }) {
+  initialDate.value = start
+  showDatePicker.value = false
 }
 
 // ── Calendar: clear the active filter ──
