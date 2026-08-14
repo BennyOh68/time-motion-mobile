@@ -135,12 +135,14 @@
     <!-- Scroll Date Picker -->
     <ScrollDatePicker v-model="initialDate" v-model:visible="showDatePicker" />
 
-    <!-- Vant Calendar: date-range filter for Project Totals -->
-    <VanCalendar
+    <!-- iOS-style range calendar: date-range filter for Project Totals -->
+    <CalendarRangePicker
       v-model:show="showCalendar"
-      :type="calendarType"
+      :mode="pickerMode"
       :min-date="calendarMinDate"
       :max-date="calendarMaxDate"
+      :model-start="rangeStart"
+      :model-end="rangeEnd"
       @confirm="onCalendarConfirm"
     />
   </div>
@@ -151,10 +153,9 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
-import { Calendar as VanCalendar } from 'vant'
-import 'vant/lib/index.css'
 import { readSheetData, listSheetTabs } from '../lib/googleSheets.js'
 import ScrollDatePicker from '../components/ScrollDatePicker.vue'
+import CalendarRangePicker from '../components/CalendarRangePicker.vue'
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels)
 
@@ -205,11 +206,17 @@ const totalGroutingOfProject = ref(0)
 const initialDate = ref(formatDate(new Date()))
 const showDatePicker = ref(false)
 
-// ── Date-range filter state (Project Totals → van-calendar) ──
+// ── Date-range filter state (Project Totals → iOS-style range calendar) ──
 const showCalendar = ref(false)
 const rangeStart = ref('')
 const rangeEnd = ref('')
-const calendarType = ref('range') // 'range' for Daily, 'single' for Weekly/Monthly
+
+// Map the active Daily/Weekly/Monthly tab to the picker interaction mode
+const pickerMode = computed(() => {
+  if (viewMode.value === 'Weekly') return 'weekly'
+  if (viewMode.value === 'Monthly') return 'monthly'
+  return 'daily'
+})
 
 // Reset the active filter whenever the Daily/Weekly/Monthly tab changes
 watch(viewMode, () => {
@@ -535,25 +542,13 @@ const chartOptions = computed(() => {
 
 // ── Calendar: open with the right picker mode for the active tab ──
 function openDateRangePicker() {
-  calendarType.value = viewMode.value === 'Weekly' || viewMode.value === 'Monthly' ? 'single' : 'range'
   showCalendar.value = true
 }
 
-// ── Calendar: confirm a picked date/range ──
-function onCalendarConfirm(value) {
-  if (Array.isArray(value) && value.length === 2) {
-    // Daily: [start, end]
-    rangeStart.value = formatDate(value[0])
-    rangeEnd.value = formatDate(value[1])
-  } else if (value instanceof Date) {
-    // Weekly: 7-day window · Monthly: 30-day window
-    const start = new Date(value)
-    const days = viewMode.value === 'Monthly' ? 29 : 6
-    const end = new Date(value)
-    end.setDate(end.getDate() + days)
-    rangeStart.value = formatDate(start)
-    rangeEnd.value = formatDate(end)
-  }
+// ── Calendar: confirm a picked date/range from the iOS-style picker ──
+function onCalendarConfirm({ start, end }) {
+  rangeStart.value = start
+  rangeEnd.value = end
   showCalendar.value = false
 }
 
