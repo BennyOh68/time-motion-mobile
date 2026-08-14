@@ -142,12 +142,10 @@ export async function fetchDropdownSettings() {
   const { data, error } = await supabase
     .from('dropdown_settings')
     .select('*')
-    .single()
+    .maybeSingle()
 
-  if (error) {
-    if (error.code === 'PGRST116') return null // no row yet
-    throw new Error(message(error, 'Failed to load settings'))
-  }
+  if (error) throw new Error(message(error, 'Failed to load settings'))
+  if (!data) return null // no row yet
   return toSettings(data)
 }
 
