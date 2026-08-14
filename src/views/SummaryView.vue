@@ -1,10 +1,10 @@
 <template>
   <div class="summary-page">
-    <h2>📝 Summary for Edit</h2>
+    <h2>Summary for Edit</h2>
 
     <!-- Project title (same format/alignment as Chart page) -->
     <div class="chart-meta">
-      <span><b>Project:</b> {{ appState.projectName || '—' }}</span>
+      <span><b>Project Name:</b> {{ appState.projectName || '—' }}</span>
     </div>
 
     <!-- Rig + Date filter bar (mirrors Chart page; synced via appState) -->
