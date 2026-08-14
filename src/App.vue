@@ -25,9 +25,9 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supabase } from './lib/supabase.js'
-import { appState, hydrateLogRows, applyRealtimeEvent } from './store/appState.js'
+import { appState, hydrateLogRows, applyRealtimeEvent, hydrateFormState, applyFormStateEvent } from './store/appState.js'
 import { hydrateDropdownSettings } from './store/dropdowns.js'
-import { subscribeToTimeEntries } from './lib/supabaseData.js'
+import { subscribeToTimeEntries, subscribeToFormState } from './lib/supabaseData.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -37,6 +37,7 @@ const isLoggedIn = computed(() => !!appState.user)
 let realtimeUnsub = null
 let realtimeTimer = null
 let pendingEvents = []
+let formStateUnsub = null
 
 // ── Swipe navigation ──
 const routeOrder = ['InputSetup', 'Summary', 'Chart', 'Export', 'Dashboard']
@@ -101,7 +102,7 @@ supabase.auth.onAuthStateChange((event, session) => {
 // ── Data hydration + realtime sync (cross-device) ────────────────────────────
 async function hydrateUserData() {
   try {
-    await Promise.all([hydrateLogRows(), hydrateDropdownSettings()])
+    await Promise.all([hydrateLogRows(), hydrateDropdownSettings(), hydrateFormState()])
   } catch (err) {
     console.warn('Supabase hydration failed (offline?):', err?.message)
   }
@@ -115,6 +116,9 @@ function startRealtime() {
     clearTimeout(realtimeTimer)
     realtimeTimer = setTimeout(flushRealtimeEvents, 50)
   })
+  formStateUnsub = subscribeToFormState((evt) => {
+    applyFormStateEvent(evt)
+  })
 }
 
 function flushRealtimeEvents() {
@@ -127,6 +131,10 @@ function stopRealtime() {
   if (realtimeUnsub) {
     realtimeUnsub()
     realtimeUnsub = null
+  }
+  if (formStateUnsub) {
+    formStateUnsub()
+    formStateUnsub = null
   }
   clearTimeout(realtimeTimer)
   pendingEvents = []

@@ -3,6 +3,8 @@ import {
   fetchTimeEntries,
   insertTimeEntries,
   updateTimeEntry,
+  fetchFormState,
+  upsertFormState,
 } from '../lib/supabaseData.js'
 
 const STORAGE_KEY = 'tm_appState'
@@ -104,6 +106,112 @@ watch(
 let knownById = new Map()   // id -> JSON snapshot of the row as last known in DB
 let pendingUploads = []     // local rows that failed first insert (offline retry)
 let syncTimer = null
+
+// ── Form-state cross-device sync ─────────────────────────────────────────────
+// The Input page fields (header + all three segment entries) are synced to a
+// per-user `form_state` row so every device shows the same in-progress form.
+function snapshotFormState() {
+  return {
+    projectName: appState.projectName,
+    teamRig: appState.teamRig,
+    workType: appState.workType,
+    refPoint: appState.refPoint,
+    logDate: appState.logDate,
+    prep: {
+      activity: appState.prepActivity,
+      timeIn: appState.prepTimeIn,
+      timeOut: appState.prepTimeOut,
+      startDepth: appState.prepStartDepth,
+      endDepth: appState.prepEndDepth,
+    },
+    prod: {
+      activity: appState.prodActivity,
+      timeIn: appState.prodTimeIn,
+      timeOut: appState.prodTimeOut,
+      startDepth: appState.prodStartDepth,
+      endDepth: appState.prodEndDepth,
+    },
+    wait: {
+      activity: appState.waitActivity,
+      timeIn: appState.waitTimeIn,
+      timeOut: appState.waitTimeOut,
+      startDepth: appState.waitStartDepth,
+      endDepth: appState.waitEndDepth,
+    },
+  }
+}
+
+function applyFormState(state) {
+  if (!state) return
+  appState.projectName = state.projectName ?? ''
+  appState.teamRig = state.teamRig ?? ''
+  appState.workType = state.workType || 'JGP'
+  appState.refPoint = state.refPoint ?? ''
+  if (state.logDate) appState.logDate = state.logDate
+  const seg = (s, prefix) => {
+    if (!s) return
+    appState[prefix + 'Activity'] = s.activity ?? ''
+    appState[prefix + 'TimeIn'] = s.timeIn ?? ''
+    appState[prefix + 'TimeOut'] = s.timeOut ?? ''
+    appState[prefix + 'StartDepth'] = s.startDepth ?? '0.0'
+    appState[prefix + 'EndDepth'] = s.endDepth ?? '0.0'
+  }
+  seg(state.prep, 'prep')
+  seg(state.prod, 'prod')
+  seg(state.wait, 'wait')
+}
+
+// Last snapshots used to prevent echo loops (only push genuine local changes).
+let lastPushedForm = null
+let formApplyingRemote = false
+let formPushTimer = null
+
+/**
+ * Load the current user's in-progress form from Supabase and apply it locally.
+ * Called after login / hydration. Does not push back (no-op if no row).
+ */
+export async function hydrateFormState() {
+  try {
+    const state = await fetchFormState()
+    if (state) {
+      formApplyingRemote = true
+      applyFormState(state)
+      lastPushedForm = JSON.stringify(snapshotFormState())
+      formApplyingRemote = false
+    }
+  } catch (err) {
+    console.warn('Form-state hydration failed (offline?):', err?.message)
+  }
+}
+
+/**
+ * Apply a realtime form_state event from another device (or self-echo).
+ */
+export function applyFormStateEvent(evt) {
+  if (evt.type === 'DELETE') return // form_state is upserted; ignore deletes
+  if (!evt.newRow) return
+  formApplyingRemote = true
+  applyFormState(evt.newRow)
+  lastPushedForm = JSON.stringify(snapshotFormState())
+  formApplyingRemote = false
+}
+
+// Debounced push of local form edits to Supabase, skipping echoes.
+watch(
+  () => JSON.stringify(snapshotFormState()),
+  (snapshotJson) => {
+    if (formApplyingRemote) return
+    if (snapshotJson === lastPushedForm) return
+    clearTimeout(formPushTimer)
+    formPushTimer = setTimeout(() => {
+      const state = snapshotFormState()
+      lastPushedForm = JSON.stringify(state)
+      upsertFormState(state).catch((err) =>
+        console.warn('Form-state push deferred (offline?):', err?.message)
+      )
+    }, 600)
+  }
+)
 
 function refreshKnown(rows = appState.logRows) {
   knownById = new Map(rows.map((r) => [r.id, JSON.stringify(r)]))

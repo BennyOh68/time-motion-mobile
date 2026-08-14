@@ -49,7 +49,21 @@ create table if not exists public.dropdown_settings (
 -- alter table public.dropdown_settings add column if not exists hidden_rig jsonb not null default '{}'::jsonb;
 -- alter table public.dropdown_settings add column if not exists work_type_labels jsonb not null default '{"JGP":"Jet Grout Pile (JGP)","GH":"Grout Hole (GH)"}'::jsonb;
 
--- ── Optional Table 3: profiles (user metadata) ──────────────────────────────
+-- ── Table 3: form_state (Input page in-progress form, cross-device) ─────────
+create table if not exists public.form_state (
+  user_id      uuid primary key references auth.users(id) on delete cascade,
+  project_name text,
+  team_rig     text,
+  work_type    text,
+  ref_point    text,
+  log_date     text,
+  prep         jsonb not null default '{}'::jsonb,   -- { activity, timeIn, timeOut, startDepth, endDepth }
+  prod         jsonb not null default '{}'::jsonb,
+  wait         jsonb not null default '{}'::jsonb,
+  updated_at   timestamptz not null default now()
+);
+
+-- ── Optional Table 4: profiles (user metadata) ──────────────────────────────
 create table if not exists public.profiles (
   id           uuid primary key references auth.users(id) on delete cascade,
   display_name text,
@@ -59,6 +73,7 @@ create table if not exists public.profiles (
 -- ── Row Level Security ───────────────────────────────────────────────────────
 alter table public.time_entries      enable row level security;
 alter table public.dropdown_settings enable row level security;
+alter table public.form_state        enable row level security;
 alter table public.profiles          enable row level security;
 
 drop policy if exists "own time_entries" on public.time_entries;
@@ -69,6 +84,12 @@ create policy "own time_entries" on public.time_entries
 
 drop policy if exists "own dropdown_settings" on public.dropdown_settings;
 create policy "own dropdown_settings" on public.dropdown_settings
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "own form_state" on public.form_state;
+create policy "own form_state" on public.form_state
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
@@ -85,8 +106,10 @@ create policy "own profile" on public.profiles
 grant usage on schema public to anon, authenticated;
 grant all on table public.time_entries      to anon, authenticated;
 grant all on table public.dropdown_settings to anon, authenticated;
+grant all on table public.form_state        to anon, authenticated;
 grant all on table public.profiles          to anon, authenticated;
 
 -- ── Realtime (optional: push inserts/updates to all devices) ─────────────────
 alter publication supabase_realtime add table public.time_entries;
 alter publication supabase_realtime add table public.dropdown_settings;
+alter publication supabase_realtime add table public.form_state;

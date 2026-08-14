@@ -139,6 +139,25 @@ const EMPTY_DROPDOWN_SETTINGS = {
   },
 }
 
+const EMPTY_SEGMENT = {
+  activity: '',
+  timeIn: '',
+  timeOut: '',
+  startDepth: '0.0',
+  endDepth: '0.0',
+}
+
+const EMPTY_FORM_STATE = {
+  projectName: '',
+  teamRig: '',
+  workType: 'JGP',
+  refPoint: '',
+  logDate: '',
+  prep: { ...EMPTY_SEGMENT },
+  prod: { ...EMPTY_SEGMENT },
+  wait: { ...EMPTY_SEGMENT },
+}
+
 /**
  * Fetch the current user's dropdown settings (Setup page lists).
  * Returns null if none exist yet.
@@ -166,6 +185,63 @@ export async function upsertDropdownSettings(settings) {
 
   const { error } = await supabase.from('dropdown_settings').upsert(payload)
   if (error) throw new Error(message(error, 'Failed to save settings'))
+}
+
+// ── Form state (Input page in-progress form) ─────────────────────────────────
+
+/**
+ * Fetch the current user's in-progress Input-page form. Returns null if
+ * nothing has been saved yet.
+ */
+export async function fetchFormState() {
+  const { data, error } = await supabase
+    .from('form_state')
+    .select('*')
+    .maybeSingle()
+
+  if (error) throw new Error(message(error, 'Failed to load form state'))
+  if (!data) return null
+  return toFormState(data)
+}
+
+/**
+ * Insert or update the current user's in-progress form state.
+ * @param {object} state camelCase form snapshot (see EMPTY_FORM_STATE)
+ */
+export async function upsertFormState(state) {
+  const userId = await currentUserId()
+  if (!userId) throw new Error('Not authenticated')
+  const merged = { ...EMPTY_FORM_STATE, ...(state || {}) }
+  const payload = { user_id: userId, ...toFormStateDb(merged) }
+
+  const { error } = await supabase.from('form_state').upsert(payload)
+  if (error) throw new Error(message(error, 'Failed to save form state'))
+}
+
+/**
+ * Subscribe to form_state changes (INSERT / UPDATE / DELETE) from any device.
+ * Returns an unsubscribe function.
+ */
+export function subscribeToFormState(onEvent) {
+  const channel = supabase
+    .channel('form_state_realtime')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'form_state' },
+      (payload) => {
+        const type = payload.eventType
+        if (type === 'DELETE') {
+          onEvent({ type, oldId: payload.old?.user_id })
+        } else {
+          onEvent({ type, newRow: toFormState(payload.new) })
+        }
+      }
+    )
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
 }
 
 // ── Column mapping helpers ────────────────────────────────────────────────────
@@ -239,6 +315,40 @@ function toSettingsDb(s) {
     hidden_prod: s.hiddenProd,
     hidden_wait: s.hiddenWait,
     work_type_labels: s.workTypeLabels,
+    updated_at: new Date().toISOString(),
+  }
+}
+
+function toFormState(db) {
+  const seg = (raw) => ({
+    activity: raw?.activity || '',
+    timeIn: raw?.timeIn || '',
+    timeOut: raw?.timeOut || '',
+    startDepth: raw?.startDepth ?? '0.0',
+    endDepth: raw?.endDepth ?? '0.0',
+  })
+  return {
+    projectName: db.project_name || '',
+    teamRig: db.team_rig || '',
+    workType: db.work_type || 'JGP',
+    refPoint: db.ref_point || '',
+    logDate: db.log_date || '',
+    prep: seg(db.prep),
+    prod: seg(db.prod),
+    wait: seg(db.wait),
+  }
+}
+
+function toFormStateDb(s) {
+  return {
+    project_name: s.projectName || null,
+    team_rig: s.teamRig || null,
+    work_type: s.workType || null,
+    ref_point: s.refPoint || null,
+    log_date: s.logDate || null,
+    prep: s.prep || {},
+    prod: s.prod || {},
+    wait: s.wait || {},
     updated_at: new Date().toISOString(),
   }
 }
