@@ -161,18 +161,30 @@ const gridCells = computed(() => {
 })
 
 // ── Cell visual state ──
+const monthlyPreviewEnd = computed(() => {
+  // In monthly mode, once Start is picked (and End is pending) show the
+  // full prospective range highlighted through the farthest End candidate.
+  if (props.mode !== 'monthly' || !startDate.value || endDate.value) return null
+  return addDays(startOfDay(startDate.value), 30)
+})
+
 function cellClass(cell) {
   const d = cell.date
   const isStart = isSameDay(d, startDate.value)
   const isEnd = isSameDay(d, endDate.value)
-  const inRange = startDate.value && endDate.value
+  const confirmedRange = startDate.value && endDate.value
     && d >= startOfDay(startDate.value) && d <= startOfDay(endDate.value)
     && !isStart && !isEnd
+  const pEnd = monthlyPreviewEnd.value
+  const previewRange = pEnd && !endDate.value
+    && d > startOfDay(startDate.value) && d <= startOfDay(pEnd)
+    && !isStart && !isEnd && !isEndCandidate(d)
   const cls = []
   if (d.getMonth() !== cursorMonth.value) cls.push('out-month')
   if (isStart) cls.push('start')
   if (isEnd) cls.push('end')
-  if (inRange) cls.push('in-range')
+  if (confirmedRange) cls.push('in-range')
+  if (previewRange) cls.push('preview-range')
   if (isSameDay(d, today)) cls.push('today')
   if (isEndCandidate(d)) cls.push('end-candidate')
   return cls
@@ -462,6 +474,11 @@ function onCancel() {
 .crp-cell.in-range {
   background: #d8e9ff;
   border-radius: 12px;
+}
+.crp-cell.preview-range {
+  background: #eef4ff;
+  border-radius: 12px;
+  color: #6a8fd6;
 }
 .crp-cell.start,
 .crp-cell.end {
