@@ -37,11 +37,15 @@ create table if not exists public.dropdown_settings (
   last_prep_selection  text not null default '',
   last_prod_selection  text not null default '',
   last_wait_selection  text not null default '',
+  hidden_rig           jsonb not null default '{}'::jsonb,
   hidden_prep          jsonb not null default '{}'::jsonb,
   hidden_prod          jsonb not null default '{}'::jsonb,
   hidden_wait          jsonb not null default '{}'::jsonb,
   updated_at           timestamptz not null default now()
 );
+
+-- Existing databases created before hidden_rig was added: run this ALTER once.
+-- alter table public.dropdown_settings add column if not exists hidden_rig jsonb not null default '{}'::jsonb;
 
 -- ── Optional Table 3: profiles (user metadata) ──────────────────────────────
 create table if not exists public.profiles (

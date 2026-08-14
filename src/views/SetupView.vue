@@ -155,12 +155,14 @@ function undoDelete() {
 }
 
 const tabs = [
+  { key: 'rig', label: 'Team / Rig' },
   { key: 'prep', label: '1. Preparation' },
   { key: 'prod', label: '2. Production' },
   { key: 'wait', label: '3. Waits' },
 ]
 
 const tabConfig = {
+  rig: { listKey: 'rigList', hiddenKey: 'rigList' },
   prep: { listKey: 'preparationList', hiddenKey: 'preparationList' },
   prod: { listKey: 'productionList', hiddenKey: 'productionList' },
   wait: { listKey: 'waitsList', hiddenKey: 'waitsList' },

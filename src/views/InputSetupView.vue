@@ -26,7 +26,7 @@
           <label for="teamRig">Team / Rig</label>
           <v-select
             v-model="appState.teamRig"
-            :options="dropdowns.rigList"
+            :options="rigOptions"
             placeholder="Select or type rig…"
             taggable
             push-tags
@@ -296,6 +296,9 @@ const currentEndDepth = computed({
 })
 
 // ── Dropdown options per tab ──────────────────────────────────
+const rigOptions = computed(() =>
+  dropdowns.rigList.filter((_, i) => !hiddenItems.rigList[i])
+)
 const prepOptions = computed(() =>
   dropdowns.preparationList.filter((_, i) => !hiddenItems.preparationList[i])
 )

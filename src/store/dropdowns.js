@@ -78,6 +78,7 @@ export const dropdowns = reactive({
 
 // ── Hidden items per list (index-based) ──
 export const hiddenItems = reactive({
+  rigList: persisted?.hiddenRig || {},
   preparationList: persisted?.hiddenPrep || {},
   productionList: persisted?.hiddenProd || {},
   waitsList: persisted?.hiddenWait || {},
@@ -89,6 +90,7 @@ let pushTimer = null
 watch(
   () => ({
     ...JSON.parse(JSON.stringify(dropdowns)),
+    hiddenRig: JSON.parse(JSON.stringify(hiddenItems.rigList)),
     hiddenPrep: JSON.parse(JSON.stringify(hiddenItems.preparationList)),
     hiddenProd: JSON.parse(JSON.stringify(hiddenItems.productionList)),
     hiddenWait: JSON.parse(JSON.stringify(hiddenItems.waitsList)),
@@ -123,6 +125,7 @@ export async function hydrateDropdownSettings() {
       dropdowns.lastPrepSelection = settings.lastPrepSelection
       dropdowns.lastProdSelection = settings.lastProdSelection
       dropdowns.lastWaitSelection = settings.lastWaitSelection
+      hiddenItems.rigList = settings.hiddenRig
       hiddenItems.preparationList = settings.hiddenPrep
       hiddenItems.productionList = settings.hiddenProd
       hiddenItems.waitsList = settings.hiddenWait
@@ -142,6 +145,7 @@ export function resetDropdowns() {
   dropdowns.preparationList = [...DEFAULT_PREPARATION]
   dropdowns.productionList = [...DEFAULT_PRODUCTION]
   dropdowns.waitsList = [...DEFAULT_WAITS]
+  hiddenItems.rigList = {}
   hiddenItems.preparationList = {}
   hiddenItems.productionList = {}
   hiddenItems.waitsList = {}
