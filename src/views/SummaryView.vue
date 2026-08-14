@@ -21,15 +21,12 @@
       </div>
     </div>
 
-    <div class="info-bar">
-      <span class="info-left">{{ infoSummary }}</span>
+    <div v-if="lastEditSnapshot" class="undo-bar">
       <button
-        v-if="lastEditSnapshot"
         class="btn-undo"
         title="Undo last edit"
         @click="undoLastEdit"
-      >↩</button>
-      <span class="info-right">{{ formattedDate }}</span>
+      >↩ Undo</button>
     </div>
 
     <div v-if="appState.logRows.length === 0" class="empty-msg">
@@ -647,13 +644,6 @@ function formatDepth(val) {
   return num.toFixed(1) + 'm'
 }
 
-// ── Info bar (reflects the filtered report) ──
-const infoSummary = computed(() => {
-  const project = sortedRows.value[0]?.projectName || appState.projectName
-  const parts = [project, filterTeam.value].filter(Boolean)
-  return parts.join(' · ') || '—'
-})
-
 const formattedDate = computed(() => {
   const d = filterDate.value
   if (!d) {
@@ -682,26 +672,11 @@ h2 {
   margin-bottom: 4px;
 }
 
-.info-bar {
+.undo-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 16px;
-  padding: 0 16px;
-  color: #64748b;
-  font-size: 13px;
-}
-
-.info-left {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-right: 12px;
-}
-
-.info-right {
-  flex-shrink: 0;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 /* ── Project title (mirrors Chart page) ── */
