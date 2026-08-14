@@ -62,11 +62,25 @@
           <span class="total-label">{{ totals.periodLabel }}</span>
           <span class="total-value">{{ totals.periodCount }}</span>
         </div>
-        <div class="total-item">
+        <div class="total-item date-range-item">
           <span class="total-label">Date Range</span>
           <span class="total-value">
             <button class="date-range-btn" @click="openDateRangePicker">
-              {{ totals.dateRange }}
+              <template v-if="viewMode === 'Daily' && totals.dateRangeStart === totals.dateRangeEnd">
+                {{ totals.dateRangeStart }}
+              </template>
+              <template v-else>
+                <span class="range-stack">
+                  <span class="range-line">
+                    <span class="range-sub-label">Start</span>
+                    <span class="range-sub-value">{{ totals.dateRangeStart }}</span>
+                  </span>
+                  <span class="range-line">
+                    <span class="range-sub-label">End</span>
+                    <span class="range-sub-value">{{ totals.dateRangeEnd }}</span>
+                  </span>
+                </span>
+              </template>
             </button>
             <button
               v-if="rangeStart && rangeEnd"
@@ -278,6 +292,34 @@ function formatDate(d) {
   return `${y}-${m}-${day}`
 }
 
+// Display format: dd-mm-YYYY
+function formatDisplayDate(d) {
+  if (!d) return 'N/A'
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  return `${dd}-${mm}-${d.getFullYear()}`
+}
+
+// ISO week key "YYYY-Www" → Monday of that week (as a Date)
+function weekKeyToMonday(key) {
+  const m = /^(\d{4})-W(\d{1,2})$/.exec(key || '')
+  if (!m) return null
+  const year = +m[1]
+  const week = +m[2]
+  const jan4 = new Date(year, 0, 4)
+  const day = jan4.getDay() || 7 // Mon=1 … Sun=7
+  const mondayOfWeek1 = new Date(year, 0, 4 - (day - 1))
+  const monday = new Date(mondayOfWeek1)
+  monday.setDate(mondayOfWeek1.getDate() + (week - 1) * 7)
+  return monday
+}
+
+function addDaysLocal(d, n) {
+  const nd = new Date(d)
+  nd.setDate(nd.getDate() + n)
+  return nd
+}
+
 // ── Filtered rows: only those inside the selected date range (inclusive) ──
 const filteredRows = computed(() => {
   if (!rangeStart.value || !rangeEnd.value) return rows.value
@@ -379,6 +421,7 @@ const reportTotalHours = computed(() => {
 
 // ── Computed: project totals ──
 // Date Range & period count follow the selected Daily/Weekly/Monthly tab.
+// Date Range is displayed stacked (Start above End) in dd-mm-YYYY.
 const totals = computed(() => {
   const { catMap, dates, weeks, months } = processRows()
   const totalHours = +[...catMap.values()].reduce((s, c) => s + c.totalHours, 0).toFixed(1)
@@ -390,13 +433,37 @@ const totals = computed(() => {
       : dates
   const periodArr = [...periodSet].sort()
 
-  // When the user picked a range in the calendar, show exactly that range;
-  // otherwise fall back to the span of the (filtered) data.
-  const dateRange = rangeStart.value && rangeEnd.value
-    ? `${rangeStart.value} – ${rangeEnd.value}`
-    : periodArr.length
-      ? `${periodArr[0]} – ${periodArr[periodArr.length - 1]}`
-      : 'N/A'
+  // Resolve the start/end Date objects for the current view.
+  // Preferred: the exact range picked in the calendar.
+  // Fallback: derive from the period keys (dates / weeks / months) of the data.
+  let startD = null
+  let endD = null
+
+  if (rangeStart.value && rangeEnd.value) {
+    startD = parseDate(rangeStart.value)
+    endD = parseDate(rangeEnd.value)
+  } else if (periodArr.length) {
+    const first = periodArr[0]
+    const last = periodArr[periodArr.length - 1]
+
+    if (viewMode.value === 'Weekly') {
+      // "YYYY-Www" → Monday of that week; end = Monday + 6 (Sunday)
+      startD = weekKeyToMonday(first)
+      endD = startD ? addDaysLocal(startD, 6) : null
+    } else if (viewMode.value === 'Monthly') {
+      // "YYYY-MM" → 1st of month; end = last day of month
+      const m = /^(\d{4})-(\d{1,2})$/.exec(last)
+      if (m) {
+        const y = +m[1]
+        const mo = +m[2]
+        startD = new Date(y, mo - 1, 1)
+        endD = new Date(y, mo, 0) // day 0 of next month = last day of this month
+      }
+    } else {
+      startD = parseDate(first)
+      endD = parseDate(last)
+    }
+  }
 
   const periodLabel = viewMode.value === 'Weekly'
     ? 'Weeks Logged'
@@ -408,7 +475,8 @@ const totals = computed(() => {
     totalHours: String(totalHours),
     periodCount: periodSet.size,
     periodLabel,
-    dateRange,
+    dateRangeStart: formatDisplayDate(startD),
+    dateRangeEnd: formatDisplayDate(endD),
   }
 })
 
@@ -790,6 +858,32 @@ h2 {
 .date-range-btn:hover {
   border-color: #1d4ed8;
   background: #eff6ff;
+}
+.range-stack {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.range-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.range-sub-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #94a3b8;
+  min-width: 28px;
+}
+.range-sub-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1d4ed8;
+  font-variant-numeric: tabular-nums;
+}
+.date-range-item {
+  align-items: flex-start;
 }
 .date-range-clear {
   margin-left: 6px;
