@@ -73,6 +73,14 @@ create policy "own profile" on public.profiles
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
+-- ── Grants (REQUIRED: PostgREST 403 "permission denied" without these) ───────
+-- RLS still enforces row-level ownership below; grants merely let the API
+-- roles reach the tables so policies can filter.
+grant usage on schema public to anon, authenticated;
+grant all on table public.time_entries      to anon, authenticated;
+grant all on table public.dropdown_settings to anon, authenticated;
+grant all on table public.profiles          to anon, authenticated;
+
 -- ── Realtime (optional: push inserts/updates to all devices) ─────────────────
 alter publication supabase_realtime add table public.time_entries;
 alter publication supabase_realtime add table public.dropdown_settings;
