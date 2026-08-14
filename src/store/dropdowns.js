@@ -97,17 +97,21 @@ export const workTypeLabels = reactive({
 })
 
 /**
- * Extract the abbreviation from a label's parentheses, e.g.
- * "Jet Grout Pile (JGP)" → "JGP". Falls back to the raw value (or label)
- * when no brackets are present.
+ * Extract the abbreviation inside a label's parentheses, e.g.
+ * "Jet Grout Pile (JGP)" → "JGP". Returns '' when no brackets are present.
+ */
+export function bracketOf(label) {
+  const m = String(label || '').match(/\(([^)]+)\)/)
+  return m ? m[1].trim() : ''
+}
+
+/**
+ * Prefix used before the Ref. Point: the alphabet inside the label's
+ * brackets, e.g. "Jet Grout Pile (XYZ)" → "XYZ". Falls back to the raw
+ * value when the label has no brackets.
  */
 export function workTypePrefix(value) {
-  const label = workTypeLabels[value]
-  if (label) {
-    const m = String(label).match(/\(([^)]+)\)/)
-    if (m) return m[1].trim()
-  }
-  return value || ''
+  return bracketOf(workTypeLabels[value]) || value || ''
 }
 
 let hydrating = false

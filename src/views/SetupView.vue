@@ -101,7 +101,7 @@
         (e.g. <code>JGP - P1</code>).
       </p>
       <div class="wt-field">
-        <span class="wt-key">JGP</span>
+        <span class="wt-key">{{ bracketOf(workTypeLabels.JGP) || 'JGP' }}</span>
         <input
           v-model="workTypeLabels.JGP"
           type="text"
@@ -110,7 +110,7 @@
         />
       </div>
       <div class="wt-field">
-        <span class="wt-key">GH</span>
+        <span class="wt-key">{{ bracketOf(workTypeLabels.GH) || 'GH' }}</span>
         <input
           v-model="workTypeLabels.GH"
           type="text"
@@ -126,7 +126,7 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import { dropdowns, hiddenItems, resetDropdowns, workTypeLabels } from '../store/dropdowns.js'
+import { dropdowns, hiddenItems, resetDropdowns, workTypeLabels, bracketOf } from '../store/dropdowns.js'
 
 const activeTab = ref('prep')
 const focusedIndex = ref(null)
@@ -556,7 +556,8 @@ h2 {
 
 .wt-key {
   flex-shrink: 0;
-  width: 34px;
+  min-width: 34px;
+  padding: 0 6px;
   font-size: 12px;
   font-weight: 700;
   color: #94a3b8;
