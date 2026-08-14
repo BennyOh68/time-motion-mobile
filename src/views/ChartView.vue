@@ -684,7 +684,7 @@ h2 {
 /* Date navigator */
 .date-nav {
   flex: 1 1 0;
-  min-width: 220px;
+  min-width: 204px;
   display: flex;
   align-items: center;
   justify-content: center;
