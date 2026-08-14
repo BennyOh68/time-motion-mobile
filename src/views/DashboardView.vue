@@ -27,10 +27,10 @@
       <Bar v-if="hasChartData" :data="chartData" :options="chartOptions" />
       <p v-else class="empty-msg" style="padding: 12px 0;">Chart data is all zero — check category mapping.</p>
     </div>
-    <p v-else-if="!loading && rows.length === 0" class="empty-msg">No data found in this tab.</p>
+    <p v-else-if="!loading && filteredRows.length === 0" class="empty-msg">No data found in this tab.</p>
 
     <!-- CATEGORY REPORT TABLE -->
-    <div v-if="rows.length > 0" class="report-table">
+    <div v-if="filteredRows.length > 0" class="report-table">
       <div
         v-for="cat in categories"
         :key="cat.name"
@@ -51,7 +51,7 @@
     </div>
 
     <!-- PROJECT TOTALS -->
-    <div v-if="rows.length > 0" class="totals-section">
+    <div v-if="filteredRows.length > 0" class="totals-section">
       <h3>Project Totals</h3>
       <div class="totals-grid">
         <div class="total-item">
@@ -64,17 +64,26 @@
         </div>
         <div class="total-item">
           <span class="total-label">Date Range</span>
-          <span class="total-value">{{ totals.dateRange }}</span>
+          <span class="total-value">
+            <button class="date-range-btn" @click="openDateRangePicker">
+              {{ totals.dateRange }}
+            </button>
+            <button
+              v-if="rangeStart && rangeEnd"
+              class="date-range-clear"
+              @click="clearDateRange"
+            >✕ Reset</button>
+          </span>
         </div>
         <div class="total-item">
           <span class="total-label">Entries</span>
-          <span class="total-value">{{ rows.length }}</span>
+          <span class="total-value">{{ filteredRows.length }}</span>
         </div>
       </div>
     </div>
 
     <!-- END DATE PROJECTION (Daily view only) -->
-    <div v-if="rows.length > 0 && viewMode === 'Daily'" class="projection-section">
+    <div v-if="filteredRows.length > 0 && viewMode === 'Daily'" class="projection-section">
       <h3>📅 End Date Projection</h3>
       <p class="proj-sub">Based on 6 working days per week (Mon–Sat)</p>
 
@@ -125,14 +134,25 @@
 
     <!-- Scroll Date Picker -->
     <ScrollDatePicker v-model="initialDate" v-model:visible="showDatePicker" />
+
+    <!-- Vant Calendar: date-range filter for Project Totals -->
+    <VanCalendar
+      v-model:show="showCalendar"
+      :type="calendarType"
+      :min-date="calendarMinDate"
+      :max-date="calendarMaxDate"
+      @confirm="onCalendarConfirm"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
+import { Calendar as VanCalendar } from 'vant'
+import 'vant/lib/index.css'
 import { readSheetData, listSheetTabs } from '../lib/googleSheets.js'
 import ScrollDatePicker from '../components/ScrollDatePicker.vue'
 
@@ -185,6 +205,37 @@ const totalGroutingOfProject = ref(0)
 const initialDate = ref(formatDate(new Date()))
 const showDatePicker = ref(false)
 
+// ── Date-range filter state (Project Totals → van-calendar) ──
+const showCalendar = ref(false)
+const rangeStart = ref('')
+const rangeEnd = ref('')
+const calendarType = ref('range') // 'range' for Daily, 'single' for Weekly/Monthly
+
+// Reset the active filter whenever the Daily/Weekly/Monthly tab changes
+watch(viewMode, () => {
+  rangeStart.value = ''
+  rangeEnd.value = ''
+})
+
+// Bounds for the van-calendar (min/max of the loaded data, ± fallback to this month)
+const calendarMinDate = computed(() => {
+  let min = null
+  for (const row of rows.value) {
+    const d = parseDate(row.date)
+    if (d && (!min || d < min)) min = d
+  }
+  return min || new Date()
+})
+
+const calendarMaxDate = computed(() => {
+  let max = null
+  for (const row of rows.value) {
+    const d = parseDate(row.date)
+    if (d && (!max || d > max)) max = d
+  }
+  return max || new Date()
+})
+
 // ── Parse time "HH:MM" → decimal hours ──
 function timeToHours(str) {
   if (!str || !str.includes(':')) return 0
@@ -220,6 +271,17 @@ function formatDate(d) {
   return `${y}-${m}-${day}`
 }
 
+// ── Filtered rows: only those inside the selected date range (inclusive) ──
+const filteredRows = computed(() => {
+  if (!rangeStart.value || !rangeEnd.value) return rows.value
+  return rows.value.filter(row => {
+    const d = parseDate(row.date)
+    if (!d) return false
+    const ds = formatDate(d)
+    return ds >= rangeStart.value && ds <= rangeEnd.value
+  })
+})
+
 // ── Process rows into category breakdown ──
 function processRows() {
   const catMap = new Map()
@@ -228,7 +290,7 @@ function processRows() {
   const months = new Set()
   let totalDepth = 0
 
-  for (const row of rows.value) {
+  for (const row of filteredRows.value) {
     const cat = normalizeCategory(row.category || '')
     if (!cat) continue
 
@@ -320,9 +382,14 @@ const totals = computed(() => {
       ? months
       : dates
   const periodArr = [...periodSet].sort()
-  const dateRange = periodArr.length
-    ? `${periodArr[0]} – ${periodArr[periodArr.length - 1]}`
-    : 'N/A'
+
+  // When the user picked a range in the calendar, show exactly that range;
+  // otherwise fall back to the span of the (filtered) data.
+  const dateRange = rangeStart.value && rangeEnd.value
+    ? `${rangeStart.value} – ${rangeEnd.value}`
+    : periodArr.length
+      ? `${periodArr[0]} – ${periodArr[periodArr.length - 1]}`
+      : 'N/A'
 
   const periodLabel = viewMode.value === 'Weekly'
     ? 'Weeks Logged'
@@ -341,7 +408,7 @@ const totals = computed(() => {
 // ── Computed: total grouting done (sum of end_depth - start_depth across all Production rows) ──
 const totalGroutingDone = computed(() => {
   let total = 0
-  for (const row of rows.value) {
+  for (const row of filteredRows.value) {
     const cat = normalizeCategory(row.category || '')
     if (cat !== 'Production Work') continue
     const start = parseFloat(row['start depth'] || row['start_depth'] || '0')
@@ -412,7 +479,7 @@ const chartData = computed(() => {
 })
 
 const chartReady = computed(() => {
-  if (rows.value.length === 0) return false
+  if (filteredRows.value.length === 0) return false
   return true
 })
 
@@ -465,6 +532,36 @@ const chartOptions = computed(() => {
     },
   }
 })
+
+// ── Calendar: open with the right picker mode for the active tab ──
+function openDateRangePicker() {
+  calendarType.value = viewMode.value === 'Weekly' || viewMode.value === 'Monthly' ? 'single' : 'range'
+  showCalendar.value = true
+}
+
+// ── Calendar: confirm a picked date/range ──
+function onCalendarConfirm(value) {
+  if (Array.isArray(value) && value.length === 2) {
+    // Daily: [start, end]
+    rangeStart.value = formatDate(value[0])
+    rangeEnd.value = formatDate(value[1])
+  } else if (value instanceof Date) {
+    // Weekly: 7-day window · Monthly: 30-day window
+    const start = new Date(value)
+    const days = viewMode.value === 'Monthly' ? 29 : 6
+    const end = new Date(value)
+    end.setDate(end.getDate() + days)
+    rangeStart.value = formatDate(start)
+    rangeEnd.value = formatDate(end)
+  }
+  showCalendar.value = false
+}
+
+// ── Calendar: clear the active filter ──
+function clearDateRange() {
+  rangeStart.value = ''
+  rangeEnd.value = ''
+}
 
 // ── Load tabs on mount ──
 onMounted(async () => {
@@ -683,6 +780,34 @@ h2 {
   font-size: 0.85rem;
   font-weight: 600;
   color: #1e293b;
+}
+.date-range-btn {
+  background: none;
+  border: 1px dashed #94a3b8;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1d4ed8;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.date-range-btn:hover {
+  border-color: #1d4ed8;
+  background: #eff6ff;
+}
+.date-range-clear {
+  margin-left: 6px;
+  background: none;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.date-range-clear:hover {
+  background: #fef2f2;
 }
 
 /* ── Projection ── */
