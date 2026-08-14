@@ -1,6 +1,6 @@
 <template>
   <div class="summary-page">
-    <h2>Summary for Edit</h2>
+    <h2>📝 Summary for Edit</h2>
 
     <!-- Project title (same format/alignment as Chart page) -->
     <div class="chart-meta">
