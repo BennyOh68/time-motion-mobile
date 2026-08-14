@@ -229,18 +229,10 @@ function onCellTap(cell) {
     return
   }
 
-  // Daily: free start → end range
-  if (!startDate.value || endDate.value) {
-    startDate.value = d
-    endDate.value = null
-  } else {
-    if (d < startDate.value) {
-      startDate.value = d
-      endDate.value = null
-    } else {
-      endDate.value = d
-    }
-  }
+  // Daily: single-day selection — tapping a date picks that day (start = end)
+  startDate.value = d
+  endDate.value = d
+  return
 }
 
 // ── Footer display ──

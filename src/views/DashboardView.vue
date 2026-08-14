@@ -153,8 +153,6 @@
     <CalendarRangePicker
       v-model:show="showCalendar"
       :mode="pickerMode"
-      :min-date="calendarMinDate"
-      :max-date="calendarMaxDate"
       :model-start="rangeStart"
       :model-end="rangeEnd"
       @confirm="onCalendarConfirm"
@@ -236,25 +234,6 @@ const pickerMode = computed(() => {
 watch(viewMode, () => {
   rangeStart.value = ''
   rangeEnd.value = ''
-})
-
-// Bounds for the van-calendar (min/max of the loaded data, ± fallback to this month)
-const calendarMinDate = computed(() => {
-  let min = null
-  for (const row of rows.value) {
-    const d = parseDate(row.date)
-    if (d && (!min || d < min)) min = d
-  }
-  return min || new Date()
-})
-
-const calendarMaxDate = computed(() => {
-  let max = null
-  for (const row of rows.value) {
-    const d = parseDate(row.date)
-    if (d && (!max || d > max)) max = d
-  }
-  return max || new Date()
 })
 
 // ── Parse time "HH:MM" → decimal hours ──
