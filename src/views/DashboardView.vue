@@ -59,8 +59,8 @@
           <span class="total-value">{{ totals.totalHours }} h</span>
         </div>
         <div class="total-item">
-          <span class="total-label">Days Logged</span>
-          <span class="total-value">{{ totals.uniqueDays }}</span>
+          <span class="total-label">{{ totals.periodLabel }}</span>
+          <span class="total-value">{{ totals.periodCount }}</span>
         </div>
         <div class="total-item">
           <span class="total-label">Date Range</span>
@@ -242,10 +242,10 @@ function processRows() {
     if (d) {
       const ds = formatDate(d)
       existing.days.add(ds)
-      existing.weeks.add(`${d.getFullYear()}-W${getISOWeek(d)}`)
+      existing.weeks.add(`${d.getFullYear()}-W${String(getISOWeek(d)).padStart(2, '0')}`)
       existing.months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
       dates.add(ds)
-      weeks.add(`${d.getFullYear()}-W${getISOWeek(d)}`)
+      weeks.add(`${d.getFullYear()}-W${String(getISOWeek(d)).padStart(2, '0')}`)
       months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
     }
 
@@ -309,16 +309,31 @@ const reportTotalHours = computed(() => {
 })
 
 // ── Computed: project totals ──
+// Date Range & period count follow the selected Daily/Weekly/Monthly tab.
 const totals = computed(() => {
-  const { catMap, dates } = processRows()
+  const { catMap, dates, weeks, months } = processRows()
   const totalHours = +[...catMap.values()].reduce((s, c) => s + c.totalHours, 0).toFixed(1)
-  const dateArr = [...dates].sort()
-  const dateRange = dateArr.length
-    ? `${dateArr[0]} – ${dateArr[dateArr.length - 1]}`
+
+  const periodSet = viewMode.value === 'Weekly'
+    ? weeks
+    : viewMode.value === 'Monthly'
+      ? months
+      : dates
+  const periodArr = [...periodSet].sort()
+  const dateRange = periodArr.length
+    ? `${periodArr[0]} – ${periodArr[periodArr.length - 1]}`
     : 'N/A'
+
+  const periodLabel = viewMode.value === 'Weekly'
+    ? 'Weeks Logged'
+    : viewMode.value === 'Monthly'
+      ? 'Months Logged'
+      : 'Days Logged'
+
   return {
     totalHours: String(totalHours),
-    uniqueDays: dates.size,
+    periodCount: periodSet.size,
+    periodLabel,
     dateRange,
   }
 })
