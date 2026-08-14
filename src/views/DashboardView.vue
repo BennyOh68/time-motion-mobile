@@ -2,10 +2,13 @@
   <div class="dashboard-page">
     <h2>📊 Dashboard</h2>
 
-    <!-- Source indicator -->
-    <div class="filter-bar">
-      <label class="filter-label">Project Name:</label>
-      <span class="entry-count">{{ appState.projectName || '—' }}</span>
+    <!-- Project name (same format/alignment as Summary & Chart pages) -->
+    <div class="chart-meta">
+      <span><b>Project Name:</b> {{ appState.projectName || '—' }}</span>
+    </div>
+
+    <!-- Status indicators -->
+    <div v-if="loading || errorMsg" class="status-bar">
       <span v-if="loading" class="loading-spin">⏳ Loading…</span>
       <span v-if="errorMsg" class="error-msg">{{ errorMsg }}</span>
     </div>
@@ -673,6 +676,21 @@ h2 {
   font-size: 0.85rem;
   font-weight: 600;
   color: #475569;
+}
+
+/* ── Project name (mirrors Summary & Chart pages) ── */
+.chart-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 .filter-select {
   padding: 6px 10px;
