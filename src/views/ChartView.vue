@@ -629,6 +629,8 @@ h2 {
 }
 
 .filter-select {
+  flex: 1 1 0;
+  min-width: 0;
   width: 200px;
   padding: 10px;
   border: 1px solid #cbd5e1;
@@ -665,8 +667,11 @@ h2 {
 
 /* Date navigator */
 .date-nav {
+  flex: 1 1 0;
+  min-width: 220px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
 }
 
