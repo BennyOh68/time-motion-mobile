@@ -167,7 +167,26 @@ async function flushLocalEdits() {
     }
   }
 
-  // 2) Push edits to rows that already exist in the DB
+  // 2) Insert brand-new rows (added via "+ Add" or offline) not yet in the DB
+  const newRows = current.filter((row) => row.id && !knownById.has(row.id))
+  if (newRows.length > 0) {
+    try {
+      console.debug('[sync] flushLocalEdits: inserting', newRows.length, 'new row(s)')
+      const saved = await insertTimeEntries(newRows)
+      const byId = new Map(saved.map((s) => [s.id, s]))
+      for (let i = 0; i < current.length; i++) {
+        const server = byId.get(current[i].id)
+        if (server) current[i] = server
+      }
+      refreshKnown()
+    } catch (err) {
+      console.warn('[sync] new-row insert deferred (offline?):', err?.message)
+      pendingUploads.push(...newRows)
+      return
+    }
+  }
+
+  // 3) Push edits to rows that already exist in the DB
   const dirty = current.filter((row) => row.id && knownById.get(row.id) !== JSON.stringify(row))
   if (dirty.length === 0) return
 
@@ -314,7 +333,7 @@ export async function submitFormRows() {
     // Server rows keep the same uuid ids (ids are provided client-side), so we
     // can simply swap in the authoritative copies.
     appState.logRows.push(...saved)
-    refreshKnown(saved)
+    refreshKnown()
   } catch (err) {
     console.error('[sync] submitFormRows INSERT FAILED:', {
       code: err?.code,
