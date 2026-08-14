@@ -2,6 +2,11 @@
   <div class="summary-page">
     <h2>📝 Summary for Edit</h2>
 
+    <!-- Project title (same format/alignment as Chart page) -->
+    <div class="chart-meta">
+      <span><b>Project:</b> {{ appState.projectName || '—' }}</span>
+    </div>
+
     <!-- Rig + Date filter bar (mirrors Chart page; synced via appState) -->
     <div class="summary-controls">
       <select v-model="filterTeam" class="filter-select">
@@ -695,6 +700,15 @@ h2 {
 
 .info-right {
   flex-shrink: 0;
+}
+
+/* ── Project title (mirrors Chart page) ── */
+.chart-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 /* ── Rig + date filter bar (mirrors Chart page) ── */
