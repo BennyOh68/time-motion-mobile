@@ -144,7 +144,7 @@
       </div>
 
       <div v-if="endDate" class="proj-result">
-        <p class="proj-end">→ Projected end: <strong>{{ endDate }}</strong></p>
+        <p class="proj-end">→ Project End Date: <strong>{{ endDate }}</strong></p>
       </div>
     </div>
 
@@ -530,7 +530,7 @@ const endDate = computed(() => {
     // Sunday = 0
     if (cursor.getDay() !== 0) remaining--
   }
-  return formatDate(cursor)
+  return formatDisplayDate(cursor)
 })
 
 // ── Chart data (horizontal stacked bar) ──
@@ -939,7 +939,9 @@ h2 {
   padding: 6px 10px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1d4ed8;
   width: 100%;
   box-sizing: border-box;
 }
@@ -952,9 +954,10 @@ h2 {
   padding: 6px 10px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
   background: #f8fafc;
-  color: #1e293b;
+  color: #1d4ed8;
   cursor: pointer;
   text-align: left;
   width: 100%;
